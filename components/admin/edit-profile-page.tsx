@@ -6,10 +6,11 @@ import {
   Save, Loader2, User, Hash, Calendar, BarChart2,
   MapPin, Phone, ChevronDown, ChevronUp, CheckCircle2,
   MousePointerClick, ArrowLeft, Image as ImageIcon, BookOpen,
-  Code2, Heart, Clock, X, Plus, Link2,
+  Code2, Heart, Clock, X, Link2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MediaPicker } from '@/components/media-picker'
+import { AddItemButton } from '@/components/shared/add-item-button'
 import type { SiteSettings } from '@/lib/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -503,13 +504,7 @@ export function EditProfilePage({ settings }: EditProfilePageProps) {
                 <DeleteBtn onClick={() => removeValue(i)} className="absolute top-2 right-2" />
               </div>
             ))}
-            <button
-              type="button"
-              onClick={addValue}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border-2 border-dashed border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-            >
-              <Plus size={13} /> Add Value
-            </button>
+            <AddItemButton onClick={addValue} label="Add Value" />
           </div>
         )}
 
@@ -536,13 +531,7 @@ export function EditProfilePage({ settings }: EditProfilePageProps) {
                 <DeleteBtn onClick={() => removeStack(i)} />
               </div>
             ))}
-            <button
-              type="button"
-              onClick={addStack}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border-2 border-dashed border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-            >
-              <Plus size={13} /> Add Skill
-            </button>
+            <AddItemButton onClick={addStack} label="Add Skill" />
           </div>
         )}
 
@@ -582,13 +571,7 @@ export function EditProfilePage({ settings }: EditProfilePageProps) {
                 <DeleteBtn onClick={() => removeTimeline(i)} className="absolute top-2 right-2" />
               </div>
             ))}
-            <button
-              type="button"
-              onClick={addTimeline}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border-2 border-dashed border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-            >
-              <Plus size={13} /> Add Event
-            </button>
+            <AddItemButton onClick={addTimeline} label="Add Event" />
           </div>
         )}
 
@@ -643,13 +626,7 @@ export function EditProfilePage({ settings }: EditProfilePageProps) {
                 <DeleteBtn onClick={() => removeSocial(i)} />
               </div>
             ))}
-            <button
-              type="button"
-              onClick={addSocial}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border-2 border-dashed border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
-            >
-              <Plus size={13} /> Add Social Link
-            </button>
+            <AddItemButton onClick={addSocial} label="Add Social Link" />
           </div>
         )}
       </div>
