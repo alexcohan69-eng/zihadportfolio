@@ -6,7 +6,17 @@ if (!rawUri) {
   throw new Error('Please define the MONGODB_URI environment variable inside .env.local')
 }
 
-const uri = rawUri.replace(/["']/g, '').trim()
+let uri = rawUri.replace(/["']/g, '').trim()
+
+// The stored env value sometimes has a corrupted/duplicated prefix before the
+// actual scheme (e.g. "MONGODB_Umongodb+srv://..."). If the string doesn't
+// start cleanly with a valid scheme, extract from the first valid occurrence.
+if (!uri.startsWith('mongodb://') && !uri.startsWith('mongodb+srv://')) {
+  const match = uri.match(/(mongodb(?:\+srv)?:\/\/.*)$/)
+  if (match) {
+    uri = match[1]
+  }
+}
 
 if (!uri.startsWith('mongodb://') && !uri.startsWith('mongodb+srv://')) {
   throw new Error(
