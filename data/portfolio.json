@@ -1,0 +1,84 @@
+{
+  "projects": [
+    {
+      "id": "proj-1",
+      "title": "E-Commerce Platform",
+      "description": "A modern e-commerce platform with advanced filtering, real-time inventory, and optimized checkout flow.",
+      "category": "webflow",
+      "image": "/uploads/project-ecom.jpg",
+      "results": {
+        "conversionIncrease": "40%",
+        "bounceRateDecrease": "35%",
+        "avgSessionTime": "+5.2 min"
+      },
+      "tech": ["React", "Webflow", "TailwindCSS", "Stripe", "MongoDB"],
+      "link": "https://example.com",
+      "github": "https://github.com/example",
+      "featured": true
+    },
+    {
+      "id": "proj-2",
+      "title": "SaaS Analytics Dashboard",
+      "description": "Comprehensive analytics dashboard with real-time data visualization, user management, and custom reporting.",
+      "category": "development",
+      "image": "/uploads/project-saas.jpg",
+      "results": {
+        "performanceIncrease": "3x faster",
+        "userRetention": "87%",
+        "avgSessionTime": "+12 min"
+      },
+      "tech": ["Next.js", "TypeScript", "PostgreSQL", "Recharts", "React Query"],
+      "link": "https://example.com",
+      "github": "https://github.com/example",
+      "featured": true
+    },
+    {
+      "id": "proj-3",
+      "title": "Landing Page Builder",
+      "description": "Drag-and-drop landing page builder with template library, SEO optimization, and built-in analytics.",
+      "category": "webflow",
+      "image": "/uploads/project-builder.jpg",
+      "results": {
+        "conversionIncrease": "55%",
+        "pageLoadTime": "-60%",
+        "bounceRateDecrease": "42%"
+      },
+      "tech": ["React", "Webflow API", "Node.js", "MongoDB", "TailwindCSS"],
+      "link": "https://example.com",
+      "github": "https://github.com/example",
+      "featured": true
+    },
+    {
+      "id": "proj-4",
+      "title": "Marketing Automation Tool",
+      "description": "Full-featured marketing automation platform with email campaigns, lead scoring, and CRM integration.",
+      "category": "development",
+      "image": "/uploads/project-automation.jpg",
+      "results": {
+        "timeToMarket": "-70%",
+        "automationRate": "92%",
+        "costReduction": "-45%"
+      },
+      "tech": ["Next.js", "Python", "PostgreSQL", "Redis", "Celery"],
+      "link": "https://example.com",
+      "github": "https://github.com/example",
+      "featured": false
+    },
+    {
+      "id": "proj-5",
+      "title": "Social Media Management Dashboard",
+      "description": "Unified dashboard for managing multiple social media accounts with scheduling and analytics.",
+      "category": "development",
+      "image": "/uploads/project-social.jpg",
+      "results": {
+        "engagementIncrease": "65%",
+        "scheduleEfficiency": "+80%",
+        "analyticsAccuracy": "99.2%"
+      },
+      "tech": ["React", "Node.js", "MongoDB", "Socket.io", "D3.js"],
+      "link": "https://example.com",
+      "github": "https://github.com/example",
+      "featured": false
+    }
+  ]
+}
