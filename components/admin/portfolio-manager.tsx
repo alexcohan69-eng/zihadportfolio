@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import {
-  Trash2, Edit2, Plus, X, Check, Upload, ExternalLink, Image,
-  Code, Loader2, Star, TrendingUp, AlignLeft, GripVertical, ImagePlus,
+  Trash2, Edit2, Plus, X, Check, ExternalLink, Image,
+  Code, Loader2, Star, TrendingUp, AlignLeft, GripVertical,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MediaPickerModal } from './media-picker-modal'
@@ -11,6 +11,7 @@ import { ToastStack, UploadFormatPicker, type UploadFormat } from './shared'
 import { useToast } from '@/hooks/use-toast'
 import { CreatableSelect } from './creatable-select'
 import { TechTagInput } from './tech-tag-input'
+import { UploadDropzone } from '@/components/shared/upload-dropzone'
 
 interface ContentBlock {
   id: string
@@ -414,17 +415,14 @@ export function PortfolioManager() {
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-2">
-                <div onClick={() => !galleryUploading && galleryRef.current?.click()} className={cn('border-2 border-dashed rounded-xl transition-colors cursor-pointer', galleryUploading ? 'border-brand/40 bg-brand/5' : 'border-border hover:border-[#f4a295]/50 hover:bg-muted/30')}>
-                  <div className="flex flex-col items-center gap-1.5 py-4 text-muted-foreground">
-                    {galleryUploading ? <Loader2 size={18} className="animate-spin text-[#f4a295]" /> : <><Upload size={18} /><span className="text-xs">Upload New</span></>}
-                  </div>
-                </div>
-                <div onClick={() => setPickerOpen(true)} className="border-2 border-dashed rounded-xl transition-colors cursor-pointer border-border hover:border-[#f4a295]/50 hover:bg-muted/30">
-                  <div className="flex flex-col items-center gap-1.5 py-4 text-muted-foreground"><ImagePlus size={18} /><span className="text-xs">Choose Existing</span></div>
-                </div>
-                <input ref={galleryRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => e.target.files && handleGalleryUpload(e.target.files)} />
-              </div>
+              <UploadDropzone
+                inputRef={galleryRef}
+                uploading={galleryUploading}
+                onChooseExisting={() => setPickerOpen(true)}
+                onFilesSelected={handleGalleryUpload}
+                accept="image/*"
+                accentColor="#f4a295"
+              />
             </div>
 
             <div>
