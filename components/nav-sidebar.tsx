@@ -13,10 +13,12 @@ import {
   Moon,
   MessageCircle,
   Database,
+  LogOut,
 } from 'lucide-react'
 import { useTheme } from '@/components/theme-provider'
 import { cn } from '@/lib/utils'
 import { useAdminStatus } from '@/hooks/use-admin-status'
+import { useClientSession } from '@/hooks/use-client-session'
 
 const PUBLIC_NAV = [
   { label: 'Home', href: '/', icon: Home },
@@ -30,6 +32,12 @@ export function NavSidebar() {
   const pathname = usePathname()
   const { theme, toggle } = useTheme()
   const isAdmin = useAdminStatus()
+  const { user: clientUser } = useClientSession()
+
+  async function handleClientLogout() {
+    await fetch('/api/auth/client/logout', { method: 'POST' })
+    window.location.href = '/'
+  }
 
   // Hydration mismatch ফিক্স করার জন্য mounted স্টেট
   const [mounted, setMounted] = useState(false)
@@ -136,6 +144,29 @@ export function NavSidebar() {
               </p>
             </div>
           </div>
+
+          {clientUser && (
+            <div className="flex items-center gap-3 px-3 py-2 rounded-xl border border-border">
+              <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-muted flex items-center justify-center border border-border">
+                {clientUser.avatar ? (
+                  <img src={clientUser.avatar} alt={clientUser.name} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xs font-bold text-foreground">{clientUser.name.charAt(0).toUpperCase()}</span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-foreground truncate">{clientUser.name}</p>
+                <p className="text-xs text-muted-foreground truncate">Client</p>
+              </div>
+              <button
+                onClick={handleClientLogout}
+                aria-label="Log out"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+              >
+                <LogOut size={15} />
+              </button>
+            </div>
+          )}
         </div>
       </aside>
     </>

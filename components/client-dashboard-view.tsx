@@ -2,11 +2,12 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Package, LogOut, MessageCircle, Clock, ArrowLeft } from 'lucide-react'
+import { Package, LogOut, MessageCircle, Clock, ArrowLeft, Camera, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ToastStack } from '@/components/admin/shared'
 import { useToast } from '@/hooks/use-toast'
 import { ChatWidget } from '@/components/chat-widget'
+import { MediaPickerModal } from '@/components/admin/media-picker-modal'
 import type { Order, SessionUser } from '@/lib/types'
 
 const STATUS_STYLES: Record<string, { label: string; bg: string; color: string }> = {
@@ -20,7 +21,34 @@ export function ClientDashboardView({ session, orders }: { session: SessionUser;
   const router = useRouter()
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [avatar, setAvatar] = useState(session.avatar ?? '')
+  const [isPickerOpen, setIsPickerOpen] = useState(false)
+  const [isSavingAvatar, setIsSavingAvatar] = useState(false)
   const { toasts, addToast } = useToast()
+
+  async function handleAvatarSelect(urls: string[]) {
+    const url = urls[0]
+    if (!url) return
+    setIsSavingAvatar(true)
+    try {
+      const res = await fetch('/api/auth/client/avatar', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatar: url }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setAvatar(url)
+        addToast('Profile picture updated')
+      } else {
+        addToast(data.error || 'Failed to update profile picture', false)
+      }
+    } catch {
+      addToast('Network error while updating profile picture', false)
+    } finally {
+      setIsSavingAvatar(false)
+    }
+  }
 
   async function handleLogout() {
     setLoggingOut(true)
@@ -39,9 +67,24 @@ export function ClientDashboardView({ session, orders }: { session: SessionUser;
 
       {/* Header */}
       <div className="flex items-center gap-3 pb-4 border-b border-border mb-5">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: '#9db8e820' }}>
-          <Package size={18} style={{ color: '#9db8e8' }} />
-        </div>
+        <button
+          onClick={() => setIsPickerOpen(true)}
+          disabled={isSavingAvatar}
+          className="relative w-9 h-9 rounded-xl overflow-hidden shrink-0 group border border-border"
+          style={{ backgroundColor: avatar ? undefined : '#9db8e820' }}
+          aria-label="Change profile picture"
+        >
+          {avatar ? (
+            <img src={avatar} alt={session.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Package size={18} style={{ color: '#9db8e8' }} />
+            </div>
+          )}
+          <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity">
+            {isSavingAvatar ? <Loader2 size={14} className="text-white animate-spin" /> : <Camera size={14} className="text-white" />}
+          </div>
+        </button>
         <div className="flex-1 min-w-0">
           <h1 className="font-bold text-base text-foreground leading-tight">Welcome, {session.name}</h1>
           <p className="text-xs text-muted-foreground">Track your orders &amp; chat with our team</p>
@@ -112,6 +155,13 @@ export function ClientDashboardView({ session, orders }: { session: SessionUser;
           })}
         </div>
       )}
+
+      <MediaPickerModal
+        isOpen={isPickerOpen}
+        onClose={() => setIsPickerOpen(false)}
+        onSelect={handleAvatarSelect}
+        multiple={false}
+      />
     </div>
   )
 }

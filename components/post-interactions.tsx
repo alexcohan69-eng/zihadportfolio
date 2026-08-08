@@ -64,7 +64,7 @@ export function PostInteractions({ postId, initialLikes = 0, initialComments = [
 
   /** Resolves the identity to attribute a like/comment to, preferring a real account. */
   const resolveIdentity = (): VisitorIdentity | null => {
-    if (authUser) return { name: authUser.name, avatar: '', isAnonymous: false }
+    if (authUser) return { name: authUser.name, avatar: authUser.avatar || '', isAnonymous: false }
     return identity
   }
 
@@ -85,7 +85,9 @@ export function PostInteractions({ postId, initialLikes = 0, initialComments = [
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [postId]) // re-fetch if postId changes (navigating between posts)
 
-  const handleLikeClick = () => {
+  const handleLikeClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
     if (!resolveIdentity()) {
       setPendingAction('like')
       setIsAuthModalOpen(true)
@@ -111,6 +113,7 @@ export function PostInteractions({ postId, initialLikes = 0, initialComments = [
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    e.stopPropagation()
     if (!commentText.trim()) return
 
     const resolved = resolveIdentity()
@@ -158,9 +161,19 @@ export function PostInteractions({ postId, initialLikes = 0, initialComments = [
     setAuthUser(sessionUser)
     setIsAuthModalOpen(false)
 
-    const resolved: VisitorIdentity = { name: sessionUser.name, avatar: '', isAnonymous: false }
+    const resolved: VisitorIdentity = { name: sessionUser.name, avatar: sessionUser.avatar || '', isAnonymous: false }
     if (pendingAction === 'like') executeLike()
     if (pendingAction === 'comment') await executeComment(resolved)
+    setPendingAction(null)
+  }
+
+  /** Fired by JoinConversationModal when the visitor picks "Continue Anonymously". */
+  const handleAnonymous = async (guestIdentity: VisitorIdentity) => {
+    setIdentity(guestIdentity)
+    setIsAuthModalOpen(false)
+
+    if (pendingAction === 'like') executeLike()
+    if (pendingAction === 'comment') await executeComment(guestIdentity)
     setPendingAction(null)
   }
 
@@ -176,7 +189,7 @@ export function PostInteractions({ postId, initialLikes = 0, initialComments = [
         </button>
 
         <button 
-          onClick={() => setIsCommentOpen(!isCommentOpen)}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsCommentOpen(!isCommentOpen) }}
           className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
         >
           <MessageCircle size={18} className={cn(isLoadingComments && 'animate-pulse')} />
@@ -209,9 +222,11 @@ export function PostInteractions({ postId, initialLikes = 0, initialComments = [
             <p className="text-xs text-muted-foreground text-center py-4">No comments yet. Be the first!</p>
           )}
 
-          <form onSubmit={handleCommentSubmit} className="flex gap-2">
+          <form onSubmit={handleCommentSubmit} onClick={(e) => e.stopPropagation()} className="flex gap-2">
             <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center shrink-0 overflow-hidden border border-border">
-               {authUser ? (
+               {authUser?.avatar ? (
+                 <img src={authUser.avatar} alt="You" className="w-full h-full object-cover" />
+               ) : authUser ? (
                  <span className="text-xs font-bold text-foreground">{authUser.name.charAt(0).toUpperCase()}</span>
                ) : identity && !identity.isAnonymous && identity.avatar ? (
                  <img src={identity.avatar} alt="You" className="w-full h-full object-cover" />
@@ -246,6 +261,7 @@ export function PostInteractions({ postId, initialLikes = 0, initialComments = [
           setPendingAction(null)
         }}
         onAuthenticated={handleAuthenticated}
+        onAnonymous={handleAnonymous}
       />
     </div>
   )

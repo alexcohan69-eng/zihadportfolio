@@ -2,8 +2,14 @@
 
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
-import { X, Loader2 } from 'lucide-react'
+import { X, Loader2, Ghost } from 'lucide-react'
 import type { SessionUser } from '@/lib/types'
+
+export interface VisitorIdentity {
+  name: string
+  avatar: string
+  isAnonymous: boolean
+}
 
 interface JoinConversationModalProps {
   open: boolean
@@ -11,6 +17,9 @@ interface JoinConversationModalProps {
   /** Fired once a session exists (OAuth bridge or fresh registration) — lets the
    *  caller resume the pending like/comment action without a page reload. */
   onAuthenticated: (user: SessionUser) => void
+  /** Fired when the visitor picks "Continue Anonymously" — persists a lightweight
+   *  guest identity to localStorage so it survives across posts/pages. */
+  onAnonymous: (identity: VisitorIdentity) => void
 }
 
 type OAuthProvider = 'google' | 'linkedin' | 'twitter'
@@ -42,7 +51,7 @@ function TwitterIcon() {
   )
 }
 
-export function JoinConversationModal({ open, onClose, onAuthenticated }: JoinConversationModalProps) {
+export function JoinConversationModal({ open, onClose, onAuthenticated, onAnonymous }: JoinConversationModalProps) {
   const [oauthLoading, setOauthLoading] = useState<OAuthProvider | null>(null)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -88,6 +97,13 @@ export function JoinConversationModal({ open, onClose, onAuthenticated }: JoinCo
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleAnonymous = () => {
+    const guestNumber = Math.floor(1000 + Math.random() * 9000)
+    const identity: VisitorIdentity = { name: `Guest ${guestNumber}`, avatar: '', isAnonymous: true }
+    localStorage.setItem('zd-visitor-identity', JSON.stringify(identity))
+    onAnonymous(identity)
   }
 
   return (
@@ -181,6 +197,14 @@ export function JoinConversationModal({ open, onClose, onAuthenticated }: JoinCo
             Create Account & Continue
           </button>
         </form>
+
+        <button
+          onClick={handleAnonymous}
+          className="w-full mt-4 py-2.5 rounded-xl font-medium text-xs flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+        >
+          <Ghost size={14} />
+          Continue Anonymously
+        </button>
       </div>
     </div>
   )

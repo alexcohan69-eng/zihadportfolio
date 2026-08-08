@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, User, Briefcase, Sparkles, Mail, Database } from 'lucide-react'
+import { Home, User, Briefcase, Sparkles, Mail, Database, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAdminStatus } from '@/hooks/use-admin-status'
+import { useClientSession } from '@/hooks/use-client-session'
 
 const PUBLIC_NAV = [
   { label: 'Home', href: '/', icon: Home },
@@ -18,6 +19,7 @@ const PUBLIC_NAV = [
 export function MobileNav() {
   const pathname = usePathname()
   const isAdmin = useAdminStatus()
+  const { user: clientUser } = useClientSession()
 
   // Hydration mismatch ফিক্স করার জন্য mounted স্টেট
   const [mounted, setMounted] = useState(false)
@@ -25,6 +27,11 @@ export function MobileNav() {
   useEffect(() => {
     setMounted(true)
   }, [])
+
+  async function handleClientLogout() {
+    await fetch('/api/auth/client/logout', { method: 'POST' })
+    window.location.href = '/'
+  }
 
   // সার্ভার এবং ক্লায়েন্ট প্রথমবার শুধুমাত্র PUBLIC_NAV দেখবে
   // মাউন্ট হওয়ার পর যদি isAdmin ট্রু হয়, তবেই Admin লিংকটি যোগ হবে
@@ -57,6 +64,16 @@ export function MobileNav() {
             </Link>
           )
         })}
+        {mounted && clientUser && (
+          <button
+            onClick={handleClientLogout}
+            className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-muted-foreground hover:text-foreground transition-all"
+            aria-label="Log out"
+          >
+            <LogOut size={20} />
+            <span className="text-[10px] font-medium">Logout</span>
+          </button>
+        )}
       </div>
     </nav>
   )
