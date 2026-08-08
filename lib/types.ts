@@ -81,6 +81,8 @@ export interface User {
   passwordHash: string
   salt: string
   createdAt: string
+  /** URL of the user's profile picture, uploaded via the media library. */
+  avatar?: string
 }
 
 /** Safe subset of `User` for client-side/session use — never includes hash/salt. */
@@ -89,6 +91,7 @@ export interface SessionUser {
   role: 'admin' | 'client'
   name: string
   email: string
+  avatar?: string
 }
 
 export interface Message {

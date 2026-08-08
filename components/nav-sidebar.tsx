@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   Home,
   User,
@@ -13,10 +14,22 @@ import {
   Moon,
   MessageCircle,
   Database,
+  LogOut,
+  LayoutDashboard,
 } from 'lucide-react'
 import { useTheme } from '@/components/theme-provider'
 import { cn } from '@/lib/utils'
 import { useAdminStatus } from '@/hooks/use-admin-status'
+import { useClientSession } from '@/hooks/use-client-session'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 const PUBLIC_NAV = [
   { label: 'Home', href: '/', icon: Home },
@@ -28,8 +41,19 @@ const PUBLIC_NAV = [
 
 export function NavSidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const { theme, toggle } = useTheme()
   const isAdmin = useAdminStatus()
+  const { user: clientUser } = useClientSession()
+
+  async function handleLogout() {
+    if (isAdmin) {
+      await fetch('/api/auth/logout', { method: 'POST' })
+    } else {
+      await fetch('/api/auth/client/logout', { method: 'POST' })
+    }
+    window.location.href = '/'
+  }
 
   // Hydration mismatch ফিক্স করার জন্য mounted স্টেট
   const [mounted, setMounted] = useState(false)
@@ -123,19 +147,64 @@ export function NavSidebar() {
             {themeText}
           </button>
 
-          <div className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-muted transition-all cursor-default">
-            <div className="w-8 h-8 rounded-full bg-brand/20 border-2 border-brand flex items-center justify-center shrink-0">
-              <span className="text-xs font-bold text-brand">ZI</span>
+          {mounted && (isAdmin || clientUser) ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-muted transition-all w-full text-left outline-none">
+                <Avatar className="w-8 h-8 border-2 border-brand shrink-0">
+                  <AvatarImage src={clientUser?.avatar} alt={clientUser?.name ?? 'Admin'} />
+                  <AvatarFallback className="bg-brand/20 text-brand text-xs font-bold">
+                    {isAdmin ? 'AD' : clientUser!.name.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-foreground truncate">
+                    {isAdmin ? 'Admin' : clientUser!.name}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {isAdmin ? 'Administrator' : 'Client'}
+                  </p>
+                </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" side="top" className="w-56">
+                <DropdownMenuLabel className="truncate">
+                  {isAdmin ? 'Admin' : clientUser!.name}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {isAdmin ? (
+                  <DropdownMenuItem onClick={() => router.push('/admin')}>
+                    <LayoutDashboard size={16} />
+                    Admin Dashboard
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={() => router.push('/client/dashboard')}>
+                    <LayoutDashboard size={16} />
+                    Client Dashboard
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="text-destructive focus:text-destructive focus:bg-destructive/10"
+                >
+                  <LogOut size={16} />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <div className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-muted transition-all cursor-default">
+              <Avatar className="w-8 h-8 border-2 border-brand shrink-0">
+                <AvatarImage src="/icon.svg" alt="Guest" />
+                <AvatarFallback className="bg-brand/20 text-brand text-xs font-bold">
+                  <Image src="/icon.svg" alt="" width={16} height={16} />
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground truncate">Guest</p>
+                <p className="text-xs text-muted-foreground truncate">Not signed in</p>
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground truncate">
-                Zihad Imtiase
-              </p>
-              <p className="text-xs text-muted-foreground truncate">
-                @zihadimtiase
-              </p>
-            </div>
-          </div>
+          )}
         </div>
       </aside>
     </>

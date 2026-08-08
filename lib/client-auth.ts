@@ -103,5 +103,5 @@ export async function getServerSession(): Promise<SessionUser | null> {
 }
 
 export function stripUser(user: User): SessionUser {
-  return { id: user.id, role: user.role, name: user.name, email: user.email }
+  return { id: user.id, role: user.role, name: user.name, email: user.email, avatar: user.avatar }
 }
