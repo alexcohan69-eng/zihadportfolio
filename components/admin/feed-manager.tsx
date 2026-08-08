@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react'
 import {
-  Trash2, Edit2, Plus, X, Check, Upload,
+  Trash2, Edit2, Plus, X, Check,
   BookOpen, Quote, Briefcase, Loader2, Star,
-  ImagePlus, ExternalLink, Code,
+  ExternalLink, Code,
   AlignLeft, Image, GripVertical, TrendingUp,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -15,6 +15,7 @@ import { TechTagInput } from './tech-tag-input'
 import { CreatableSelect } from './creatable-select'
 import { MediaThumb } from './media-thumb'
 import { TypePickerPopover, KIND_OPTIONS, type PostKind } from './type-picker-popover'
+import { UploadDropzone } from '@/components/shared/upload-dropzone'
 
 // ─── Feed item types ──────────────────────────────────────────────────────────
 
@@ -607,25 +608,14 @@ export function FeedManager() {
                 )}
 
                 {feedMediaCount < 4 && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <div
-                      className={cn('border-2 border-dashed rounded-xl transition-colors cursor-pointer', feedUploading ? 'border-brand/40 bg-brand/5' : 'border-border hover:border-[#f4a295]/50 hover:bg-muted/30')}
-                      onClick={() => !feedUploading && feedFileRef.current?.click()}
-                    >
-                      <div className="flex flex-col items-center gap-1.5 py-4 text-muted-foreground">
-                        {feedUploading ? <Loader2 size={18} className="animate-spin text-[#f4a295]" /> : <><Upload size={18} /><span className="text-xs">Upload New</span></>}
-                      </div>
-                    </div>
-                    <div
-                      className="border-2 border-dashed rounded-xl transition-colors cursor-pointer border-border hover:border-[#f4a295]/50 hover:bg-muted/30"
-                      onClick={() => setFeedPickerOpen(true)}
-                    >
-                      <div className="flex flex-col items-center gap-1.5 py-4 text-muted-foreground">
-                        <ImagePlus size={18} /><span className="text-xs">Choose Existing</span>
-                      </div>
-                    </div>
-                    <input ref={feedFileRef} type="file" multiple accept="image/*,video/mp4,video/webm,audio/*" className="hidden" onChange={(e) => e.target.files && handleFeedUpload(e.target.files)} />
-                  </div>
+                  <UploadDropzone
+                    inputRef={feedFileRef}
+                    uploading={feedUploading}
+                    onChooseExisting={() => setFeedPickerOpen(true)}
+                    onFilesSelected={handleFeedUpload}
+                    accept="image/*,video/mp4,video/webm,audio/*"
+                    accentColor="#f4a295"
+                  />
                 )}
               </div>
 
@@ -765,17 +755,14 @@ export function FeedManager() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-2 gap-2">
-                  <div onClick={() => !galleryUploading && galleryRef.current?.click()} className={cn('border-2 border-dashed rounded-xl transition-colors cursor-pointer', galleryUploading ? 'border-brand/40 bg-brand/5' : 'border-border hover:border-[#9db8e8]/50 hover:bg-muted/30')}>
-                    <div className="flex flex-col items-center gap-1.5 py-4 text-muted-foreground">
-                      {galleryUploading ? <Loader2 size={18} className="animate-spin text-[#9db8e8]" /> : <><Upload size={18} /><span className="text-xs">Upload New</span></>}
-                    </div>
-                  </div>
-                  <div onClick={() => setProjectPickerOpen(true)} className="border-2 border-dashed rounded-xl transition-colors cursor-pointer border-border hover:border-[#9db8e8]/50 hover:bg-muted/30">
-                    <div className="flex flex-col items-center gap-1.5 py-4 text-muted-foreground"><ImagePlus size={18} /><span className="text-xs">Choose Existing</span></div>
-                  </div>
-                  <input ref={galleryRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => e.target.files && handleGalleryUpload(e.target.files)} />
-                </div>
+                <UploadDropzone
+                  inputRef={galleryRef}
+                  uploading={galleryUploading}
+                  onChooseExisting={() => setProjectPickerOpen(true)}
+                  onFilesSelected={handleGalleryUpload}
+                  accept="image/*"
+                  accentColor="#9db8e8"
+                />
               </div>
 
               {/* Content blocks */}
