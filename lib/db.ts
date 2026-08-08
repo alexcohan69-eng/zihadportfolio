@@ -1,9 +1,9 @@
 import { MongoClient, ServerApiVersion } from 'mongodb'
 
-const rawUri = process.env.MONGODB_URI_2
+const rawUri = process.env.MONGODB_URI
 
 if (!rawUri) {
-  throw new Error('Please define the MONGODB_URI_2 environment variable inside .env.local')
+  throw new Error('Please define the MONGODB_URI environment variable inside .env.local')
 }
 
 const uri = rawUri.replace(/["']/g, '').trim()
