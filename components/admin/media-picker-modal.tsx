@@ -50,17 +50,8 @@ export function MediaPickerModal({ isOpen, onClose, onSelect, multiple = false }
     try {
       const res = await fetch('/api/media')
       const data = await res.json()
-      if (res.ok && data.success) {
-        setResources((data.resources ?? []).map((resource: Partial<MediaResource> & { url?: string; asset_id?: string; public_id?: string }) => ({
-          asset_id: resource.asset_id || resource.public_id || resource.secure_url || resource.url || crypto.randomUUID(),
-          public_id: resource.public_id || resource.asset_id || resource.secure_url || '',
-          secure_url: resource.secure_url || resource.url || '',
-          resource_type: resource.resource_type || 'image',
-          format: resource.format || '',
-          created_at: resource.created_at || '',
-        })).filter((resource: MediaResource) => resource.secure_url))
-      } else {
-        throw new Error(data.error || 'Failed to load media library')
+      if (data.success) {
+        setResources(data.resources)
       }
     } catch {
       addToast('Failed to load media library', false)
