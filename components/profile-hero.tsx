@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { MapPin, Calendar, MessageCircle, Mail, Briefcase, Pencil, Trash2 } from 'lucide-react'
-import { MediaPickerModal } from '@/components/admin/media-picker-modal'
+import { MediaPicker } from '@/components/media-picker'
 
 const TABS = [
   { label: 'All', value: 'all' },
@@ -57,7 +57,7 @@ function EditChip({
   hasMedia,
   label,
 }: {
-  onPickMedia: () => void
+  onPickMedia: (url: string) => void
   onDelete: () => void
   hasMedia: boolean
   label: string
@@ -68,14 +68,8 @@ function EditChip({
       <div
         className="flex items-center justify-center w-8 h-8 rounded-full bg-background/90 backdrop-blur border border-border shadow-sm hover:bg-background transition-colors"
         title={`Change ${label}`}
-        onClick={onPickMedia}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ') onPickMedia()
-        }}
       >
-        <Pencil size={13} />
+        <MediaPicker onSelect={(m) => onPickMedia(m[0].url)} />
       </div>
       {hasMedia && (
         <button
@@ -109,7 +103,6 @@ export function ProfileHero({
   // (isAdmin-only UI is skipped until after hydration completes), which
   // eliminates the "server rendered HTML didn't match" error.
   const [mounted, setMounted] = useState(false)
-  const [pickerTarget, setPickerTarget] = useState<'cover' | 'avatar' | null>(null)
   useEffect(() => {
     setMounted(true)
   }, [])
@@ -180,7 +173,7 @@ export function ProfileHero({
         {showAdminUI && (
           <div className="absolute top-3 right-3 z-20 flex flex-col items-end gap-1.5">
             <EditChip
-              onPickMedia={() => setPickerTarget('cover')}
+              onPickMedia={(url) => onCoverChange?.(url)}
               onDelete={() => onCoverDelete?.()}
               hasMedia={!!coverMedia}
               label="cover"
@@ -216,14 +209,7 @@ export function ProfileHero({
             {showAdminUI && (
               <div className="absolute -bottom-1 -right-1 z-20">
                 <div className="w-7 h-7 rounded-full bg-background/95 border border-border shadow-sm flex items-center justify-center overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setPickerTarget('avatar')}
-                    className="w-full h-full flex items-center justify-center"
-                    aria-label="Change profile image"
-                  >
-                    <Pencil size={13} />
-                  </button>
+                  <MediaPicker onSelect={(m) => onAvatarChange?.(m[0].url)} />
                 </div>
               </div>
             )}
@@ -321,18 +307,6 @@ export function ProfileHero({
           ))}
         </div>
       </div>
-
-      <MediaPickerModal
-        isOpen={pickerTarget !== null}
-        onClose={() => setPickerTarget(null)}
-        onSelect={(urls) => {
-          const url = urls[0]
-          if (!url) return
-          if (pickerTarget === 'cover') onCoverChange?.(url)
-          if (pickerTarget === 'avatar') onAvatarChange?.(url)
-          setPickerTarget(null)
-        }}
-      />
 
       {/* Filter Tabs */}
       <div className="flex border-t border-border">
