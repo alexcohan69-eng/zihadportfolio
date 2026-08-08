@@ -183,8 +183,13 @@ export async function getResourcesByTag(tag: string, maxResults = 100) {
  * Fetch all resources in a folder, with optimization params applied.
  */
 export async function getResourcesByFolder(folder: string, maxResults = 100) {
+  // `folder:X` only matches resources whose folder is EXACTLY `X`.
+  // All uploads live in sub-folders (portfolio/profile, portfolio/projects, ...),
+  // so we must also match everything nested under the base folder via `X/*`,
+  // and explicitly include both image and video resource types (Search API
+  // scopes to `resource_type:image` by default otherwise).
   const result = await cloudinary.search
-    .expression(`folder:${folder}`)
+    .expression(`(folder:${folder} OR folder:${folder}/*) AND (resource_type:image OR resource_type:video)`)
     .sort_by('created_at', 'desc')
     .max_results(maxResults)
     .execute()
