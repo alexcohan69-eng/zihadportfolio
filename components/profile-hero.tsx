@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { MapPin, Calendar, MessageCircle, Mail, Briefcase, Pencil, Trash2 } from 'lucide-react'
 import { MediaPicker } from '@/components/media-picker'
@@ -95,6 +96,18 @@ export function ProfileHero({
   onAvatarDelete,
   onEditProfile,
 }: ProfileHeroProps) {
+  // isAdmin is resolved client-side from a cookie hint (see useAdminStatus),
+  // so the server always renders it as `false` while the client's first
+  // paint can already be `true`. Gating on `mounted` guarantees both the
+  // server-rendered HTML and the client's pre-hydration render agree
+  // (isAdmin-only UI is skipped until after hydration completes), which
+  // eliminates the "server rendered HTML didn't match" error.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+  const showAdminUI = mounted && isAdmin
+
   const coverMedia = heroData.coverMedia || ''
   const profileMedia = heroData.profileMedia || ''
   const firstName = heroData.firstName || ''
@@ -157,7 +170,7 @@ export function ProfileHero({
         />
 
         {/* Admin: Cover edit controls */}
-        {isAdmin && (
+        {showAdminUI && (
           <div className="absolute top-3 right-3 z-20 flex flex-col items-end gap-1.5">
             <EditChip
               onPickMedia={(url) => onCoverChange?.(url)}
@@ -193,7 +206,7 @@ export function ProfileHero({
             <span className="absolute bottom-1 right-1 w-3 h-3 rounded-full bg-green-500 border-2 border-background" />
 
             {/* Admin: Avatar edit pencil overlay */}
-            {isAdmin && (
+            {showAdminUI && (
               <div className="absolute -bottom-1 -right-1 z-20">
                 <div className="w-7 h-7 rounded-full bg-background/95 border border-border shadow-sm flex items-center justify-center overflow-hidden">
                   <MediaPicker onSelect={(m) => onAvatarChange?.(m[0].url)} />
@@ -227,7 +240,7 @@ export function ProfileHero({
             ))}
 
             {/* Admin: Main Edit Profile pencil button */}
-            {isAdmin && (
+            {showAdminUI && (
               <button
                 onClick={onEditProfile}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold border border-border bg-card hover:bg-muted transition-all active:scale-95 shadow-sm text-foreground"

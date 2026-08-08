@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -40,7 +41,7 @@ export function MobileTopbar() {
   const isAuthed = mounted && (isAdmin || clientUser)
 
   return (
-    <header className="md:hidden sticky top-0 z-40 bg-background/90 backdrop-blur border-b border-border px-4 py-3 flex items-center justify-between">
+    <header className="sticky top-0 z-40 bg-background/90 backdrop-blur border-b border-border px-4 py-3 flex items-center justify-between">
       {isAuthed ? (
         <DropdownMenu>
           <DropdownMenuTrigger className="flex items-center gap-2 outline-none" aria-label="Account menu">
@@ -55,21 +56,27 @@ export function MobileTopbar() {
             </span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" side="bottom" className="w-56">
-            <DropdownMenuLabel className="truncate">
-              {isAdmin ? 'Admin' : clientUser!.name}
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {isAdmin ? (
-              <DropdownMenuItem onClick={() => router.push('/admin')}>
-                <LayoutDashboard size={16} />
-                Admin Dashboard
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem onClick={() => router.push('/client/dashboard')}>
-                <LayoutDashboard size={16} />
-                Client Dashboard
-              </DropdownMenuItem>
-            )}
+            {/* DropdownMenuLabel (Base UI's GroupLabel) requires a Group
+                ancestor — without it Base UI throws
+                "MenuGroupContext is missing". Wrapping the label + its
+                related items in DropdownMenuGroup satisfies that context. */}
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="truncate">
+                {isAdmin ? 'Admin' : clientUser!.name}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {isAdmin ? (
+                <DropdownMenuItem onClick={() => router.push('/admin')}>
+                  <LayoutDashboard size={16} />
+                  Admin Dashboard
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem onClick={() => router.push('/client/dashboard')}>
+                  <LayoutDashboard size={16} />
+                  Client Dashboard
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={handleLogout}

@@ -9,12 +9,9 @@ import {
   Briefcase,
   Sparkles,
   Mail,
-  Sun,
-  Moon,
   MessageCircle,
   Database,
 } from 'lucide-react'
-import { useTheme } from '@/components/theme-provider'
 import { cn } from '@/lib/utils'
 import { useAdminStatus } from '@/hooks/use-admin-status'
 
@@ -28,7 +25,6 @@ const PUBLIC_NAV = [
 
 export function NavSidebar() {
   const pathname = usePathname()
-  const { theme, toggle } = useTheme()
   const isAdmin = useAdminStatus()
 
   // Hydration mismatch ফিক্স করার জন্য mounted স্টেট
@@ -43,12 +39,6 @@ export function NavSidebar() {
   const navItems = mounted && isAdmin
     ? [...PUBLIC_NAV, { label: 'Admin', href: '/admin', icon: Database }]
     : PUBLIC_NAV
-
-  // Hydration ফিক্স: theme আইকন যাতে সার্ভার-ক্লায়েন্ট মিসম্যাচ না করে
-  // মাউন্ট না হওয়া পর্যন্ত ডিফল্ট কোনো আইকন বা স্পেস দেখাতে পারেন। 
-  // এখানে আমরা মাউন্ট হওয়ার আগ পর্যন্ত Moon দেখাচ্ছি সার্ভারের জন্য।
-  const ThemeIcon = mounted && theme === 'dark' ? Sun : Moon
-  const themeText = mounted && theme === 'dark' ? 'Light mode' : 'Dark mode'
 
   return (
     <>
@@ -109,19 +99,6 @@ export function NavSidebar() {
               Hire Me
             </Link>
           </div>
-        </div>
-
-        {/* Bottom: theme toggle */}
-        <div className="flex flex-col gap-3">
-          <button
-            onClick={toggle}
-            aria-label="Toggle theme"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-all w-full"
-          >
-            {/* Theme আইকন এবং টেক্সট */}
-            <ThemeIcon size={18} />
-            {themeText}
-          </button>
         </div>
       </aside>
     </>
