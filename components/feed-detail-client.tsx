@@ -439,7 +439,7 @@ export function FeedDetailClient({
 
       {lightboxMedia && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm animate-in fade-in"
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black animate-in fade-in duration-200"
           onClick={(e) => {
             e.preventDefault()
             e.stopPropagation()
@@ -453,16 +453,19 @@ export function FeedDetailClient({
               e.stopPropagation()
               setLightboxMedia(null)
             }}
-            className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center bg-white/10 text-white hover:bg-white/20 transition-colors z-10"
+            className="absolute top-4 left-4 sm:top-6 sm:left-6 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-md transition-colors hover:bg-white/20"
             aria-label="Close lightbox"
           >
-            <X size={20} />
+            <X size={22} />
           </button>
-          <div onClick={(e) => e.stopPropagation()}>
+          <div
+            className="relative flex h-full w-full items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
             <SmartMedia
               src={lightboxMedia}
               alt={item.title}
-              className="max-w-[95vw] max-h-[90vh] object-contain"
+              className="max-h-full max-w-full object-contain sm:max-h-[92vh] sm:max-w-[92vw]"
               controls
               autoPlay
             />

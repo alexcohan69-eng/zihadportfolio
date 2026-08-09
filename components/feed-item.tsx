@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { Share2, BookOpen, Quote, Briefcase, ExternalLink, Music, MoreHorizontal, Edit, Trash2, Pin, Loader2, X } from 'lucide-react'
+import { Share2, BookOpen, Quote, Briefcase, ExternalLink, Music, MoreHorizontal, Edit, Trash2, Pin, Loader2, X, Maximize2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PostInteractions } from '@/components/post-interactions'
 import { deleteFeedItem, updateFeedItem } from '@/lib/data-actions'
@@ -59,7 +59,30 @@ function MediaGrid({ urls, onClick, altBase, onMediaClick }: { urls: string[]; o
       e.stopPropagation()
       onMediaClick?.(url)
     }
-    if (kind === 'video') return <div key={index} className={cn('relative overflow-hidden bg-black rounded-xl cursor-pointer', className)} onClick={openLightbox}><SmartMedia src={url} alt={`${altBase ?? 'Post'} video ${index + 1}`} className="w-full h-full object-contain" controls={false} /></div>
+    if (kind === 'video') {
+      // Inline-playable video: native controls handle play/pause/seek directly
+      // on the card. The wrapper eats every click so pressing controls never
+      // bubbles into the lightbox-open handler or (further up the tree) into
+      // post navigation. A small floating expand button is the only way to
+      // reach the fullscreen lightbox for a video.
+      return (
+        <div
+          key={index}
+          className={cn('group relative overflow-hidden bg-black rounded-xl', className)}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
+        >
+          <SmartMedia src={url} alt={`${altBase ?? 'Post'} video ${index + 1}`} className="w-full h-full object-contain" controls />
+          <button
+            type="button"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMediaClick?.(url) }}
+            className="absolute top-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/80"
+            aria-label="Expand video"
+          >
+            <Maximize2 size={14} />
+          </button>
+        </div>
+      )
+    }
     if (kind === 'audio') return <div key={index} className={cn('flex flex-col items-center justify-center gap-2.5 rounded-xl bg-muted border border-border p-4', className)} onClick={(e) => e.stopPropagation()}><div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#f4a29520' }}><Music size={18} style={{ color: '#f4a295' }} /></div><audio src={url} controls className="w-full max-w-full h-8" aria-label={`${altBase ?? 'Post'} audio ${index + 1}`} style={{ accentColor: '#f4a295' }}/></div>
     return <div key={index} className={cn('overflow-hidden bg-muted rounded-xl cursor-pointer', className)} onClick={openLightbox}><SmartMedia src={url} alt={`${altBase ?? 'Post'} image ${index + 1}`} className="w-full h-full object-cover hover:scale-[1.02] transition-transform duration-300" /></div>
   }
@@ -353,7 +376,7 @@ export function FeedItem({
 
       {lightboxMedia && (
         <div
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/95 backdrop-blur-sm animate-in fade-in"
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black animate-in fade-in duration-200"
           onClick={(e) => {
             e.preventDefault()
             e.stopPropagation()
@@ -367,16 +390,19 @@ export function FeedItem({
               e.stopPropagation()
               setLightboxMedia(null)
             }}
-            className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center bg-white/10 text-white hover:bg-white/20 transition-colors z-10"
+            className="absolute top-4 left-4 sm:top-6 sm:left-6 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-md transition-colors hover:bg-white/20"
             aria-label="Close lightbox"
           >
-            <X size={20} />
+            <X size={22} />
           </button>
-          <div onClick={(e) => e.stopPropagation()}>
+          <div
+            className="relative flex h-full w-full items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
             <SmartMedia
               src={lightboxMedia}
               alt={title || author || 'Media'}
-              className="max-w-[95vw] max-h-[90vh] object-contain"
+              className="max-h-full max-w-full object-contain sm:max-h-[92vh] sm:max-w-[92vw]"
               controls
               autoPlay
             />
