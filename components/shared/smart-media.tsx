@@ -2,6 +2,10 @@ interface SmartMediaProps {
   src: string
   alt?: string
   className?: string
+  controls?: boolean
+  autoPlay?: boolean
+  muted?: boolean
+  loop?: boolean
 }
 
 const VIDEO_PATTERN = /\.(mp4|webm|ogg|mov|m4v|avi)(\?|$)/i
@@ -18,14 +22,28 @@ export function isVideoSrc(src: string): boolean {
   return VIDEO_PATTERN.test(src) || CLOUDINARY_VIDEO_PATTERN.test(src)
 }
 
-export function SmartMedia({ src, alt = '', className }: SmartMediaProps) {
+export function SmartMedia({
+  src,
+  alt = '',
+  className,
+  controls,
+  autoPlay = false,
+  muted = false,
+  loop = false,
+}: SmartMediaProps) {
   if (!src) return null
 
   if (isVideoSrc(src)) {
+    // Default to showing controls unless explicitly disabled.
+    const showControls = controls !== false
+
     return (
       <video
         src={src}
-        controls
+        controls={showControls}
+        autoPlay={autoPlay}
+        muted={muted}
+        loop={loop}
         playsInline
         className={className}
         aria-label={alt || undefined}

@@ -178,11 +178,14 @@ export interface HeroSettings {
 }
 
 export interface AboutSettings {
-  media: string[]
-  introText: string
-  timeline: TimelineItem[]
-  stack: StackItem[]
-  values: ValueItem[]
+media: string[]
+introText: string
+timeline: TimelineItem[]
+stack: StackItem[]
+values: ValueItem[]
+aboutVideoAutoplay: boolean
+aboutVideoControls: boolean
+aboutVideoMuted: boolean
 }
 
 export interface ContactSettings {

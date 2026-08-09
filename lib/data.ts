@@ -114,7 +114,16 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     profileButtonText: 'Hire Me',
     profileButtonLink: '/contact',
   },
-  about: { media: [], introText: '', timeline: [], stack: [], values: [] },
+  about: {
+    media: [],
+    introText: '',
+    timeline: [],
+    stack: [],
+    values: [],
+    aboutVideoAutoplay: false,
+    aboutVideoControls: true,
+    aboutVideoMuted: false,
+  },
   contact: { email: '', phone: '', whatsapp: '', address: '', shortText: '', contactHeading: '', contactSubHeading: '', socials: [] },
   meta: { title: '', description: '', favicon: '' },
 }
