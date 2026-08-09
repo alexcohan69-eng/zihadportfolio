@@ -100,7 +100,7 @@ export function MediaPicker({ onSelect, multiple = false, disabled = false }: Me
         type="file" 
         ref={fileRef} 
         multiple={multiple}
-        accept="image/*,video/mp4,video/webm,audio/*" 
+        accept="image/*,video/*,audio/*" 
         className="hidden" 
         onChange={e => handleFileUpload(e.target.files)} 
       />
