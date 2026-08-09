@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils'
 import { MediaPickerModal } from '@/components/admin/media-picker-modal'
 import { TechTagInput } from '@/components/admin/tech-tag-input'
 import { CreatableSelect } from '@/components/admin/creatable-select'
+import { uploadFileDirect } from '@/lib/upload-client'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -224,7 +225,7 @@ function MediaThumb({ url, onRemove }: { url: string; onRemove: () => void }) {
   )
 }
 
-// ─── Main Component ────────────────���──────────────────────────────────────────
+// ─── Main Component ────────────────�����──────────────────────────────────────────
 
 export interface NewPostComposerProps {
   open: boolean
@@ -334,14 +335,14 @@ export function NewPostComposer({
     setFeedUploading(true)
     const uploaded: string[] = []
     for (const file of Array.from(files)) {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('format', uploadFormat)
       try {
-        const res = await fetch('/api/upload', { method: 'POST', body: fd })
-        const data = await res.json()
-        if (data.success) uploaded.push(data.url)
-      } catch {}
+        // Direct-to-Cloudinary signed upload — bypasses Vercel's 4.5MB
+        // serverless payload limit so large videos upload reliably.
+        const result = await uploadFileDirect(file, { entityType: 'feed-posts' })
+        uploaded.push(result.url)
+      } catch (e) {
+        window.alert(e instanceof Error ? e.message : `Upload failed: ${file.name}`)
+      }
     }
     if (uploaded.length > 0) {
       setFeedFormState((f) => ({ ...f, media: [...(f.media ?? []), ...uploaded] }))
@@ -367,14 +368,14 @@ export function NewPostComposer({
     setGalleryUploading(true)
     const uploaded: string[] = []
     for (const file of Array.from(files)) {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('format', uploadFormat)
       try {
-        const res = await fetch('/api/upload', { method: 'POST', body: fd })
-        const data = await res.json()
-        if (data.success) uploaded.push(data.url)
-      } catch {}
+        // Direct-to-Cloudinary signed upload — bypasses Vercel's 4.5MB
+        // serverless payload limit so large videos upload reliably.
+        const result = await uploadFileDirect(file, { entityType: 'portfolio-projects' })
+        uploaded.push(result.url)
+      } catch (e) {
+        window.alert(e instanceof Error ? e.message : `Upload failed: ${file.name}`)
+      }
     }
     if (uploaded.length > 0) {
       setProjectFormState((f) => ({ ...f, images: [...(f.images ?? []), ...uploaded] }))

@@ -82,6 +82,19 @@ function generatePublicId(entityType: UploadEntityType, identifier?: string): st
 }
 
 /**
+ * Builds the folder / public_id / tags trio for a given entity so both the
+ * server-side upload path and the client-signed direct-upload path stay
+ * perfectly in sync (same organization, same dedup behavior).
+ */
+export function buildUploadParams(entityType: UploadEntityType, identifier?: string) {
+  return {
+    folder: getFolderPath(entityType),
+    public_id: generatePublicId(entityType, identifier),
+    tags: getTags(entityType).join(','),
+  }
+}
+
+/**
  * Appends Cloudinary optimization parameters for automatic format & quality selection.
  * This ensures modern image delivery across all browsers.
  */
