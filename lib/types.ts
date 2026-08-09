@@ -175,6 +175,9 @@ export interface HeroSettings {
   hireMeLink: string
   profileButtonText: string
   profileButtonLink: string
+  // Global identity shown on the author header of every feed post
+  feedAuthorName: string
+  feedAuthorMedia: string
 }
 
 export interface AboutSettings {

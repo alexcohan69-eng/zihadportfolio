@@ -6,11 +6,12 @@ import {
   Save, Loader2, User, Hash, Calendar, BarChart2,
   MapPin, Phone, ChevronDown, ChevronUp, CheckCircle2,
   MousePointerClick, ArrowLeft, Image as ImageIcon, BookOpen,
-  Code2, Heart, Clock, X, Plus, Link2,
+  Code2, Heart, Clock, X, Plus, Link2, MessageSquare,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MediaPicker } from '@/components/media-picker'
 import { Switch } from '@/components/ui/switch'
+import { SmartMedia } from '@/components/shared/smart-media'
 import type { SiteSettings } from '@/lib/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -110,6 +111,7 @@ export function EditProfilePage({ settings }: EditProfilePageProps) {
     location: false,
     contact: false,
     button: false,
+    feedIdentity: false,
     gallery: false,
     intro: false,
     values: false,
@@ -440,6 +442,49 @@ export function EditProfilePage({ settings }: EditProfilePageProps) {
             </Field>
             <Field label="Button Link / URL" hint="Use a full URL (https://…), mailto:, or an internal path like /contact.">
               <input className={inputCls} value={form.hero.profileButtonLink ?? ''} onChange={e => setHero('profileButtonLink', e.target.value)} placeholder="/contact  or  https://wa.me/…" />
+            </Field>
+          </div>
+        )}
+
+        {/* ── Feed Post Identity ── */}
+        <SectionHeader icon={MessageSquare} label="Feed Post Identity" accent="#a8d5c2" open={openSections.feedIdentity} onToggle={() => toggleSection('feedIdentity')} />
+        {openSections.feedIdentity && (
+          <div className="pt-4 pb-6 grid grid-cols-1 gap-3">
+            <p className="text-[11px] text-muted-foreground -mt-1">Controls the author name and avatar shown at the top of your own feed posts (testimonials still show the client&apos;s own identity).</p>
+
+            <div className="flex items-center gap-4">
+              <div className="relative shrink-0">
+                {form.hero.feedAuthorMedia ? (
+                  <SmartMedia
+                    src={form.hero.feedAuthorMedia}
+                    alt="Feed author avatar"
+                    className="w-16 h-16 rounded-full object-cover border border-border"
+                    autoPlay
+                    muted
+                    loop
+                    controls={false}
+                  />
+                ) : (
+                  <div
+                    className="w-16 h-16 rounded-full border border-border flex items-center justify-center font-bold text-lg uppercase"
+                    style={{ backgroundColor: '#f4a295', color: '#1a1a1a' }}
+                  >
+                    {(form.hero.feedAuthorName || 'Z').slice(0, 2)}
+                  </div>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-background border border-border shadow-sm">
+                  <MediaPicker onSelect={(m) => setHero('feedAuthorMedia', m[0].url)} />
+                </div>
+                {form.hero.feedAuthorMedia && (
+                  <DeleteBtn onClick={() => setHero('feedAuthorMedia', '')} />
+                )}
+              </div>
+            </div>
+
+            <Field label="Feed Author Name" hint="Shown on posts and projects that don&apos;t override the author.">
+              <input className={inputCls} value={form.hero.feedAuthorName} onChange={e => setHero('feedAuthorName', e.target.value)} placeholder="Zihad Imtiase" />
             </Field>
           </div>
         )}

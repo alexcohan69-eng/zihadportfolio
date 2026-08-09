@@ -176,6 +176,8 @@ export function HomeClient({ initialItems, heroData, contactData = {}, initialSe
               body={item.type === 'testimonial' ? item.content : item.excerpt}
               author={item.type === 'testimonial' ? (item.clientName ?? item.author) : item.author}
               authorRole={item.type === 'testimonial' ? item.clientRole : undefined}
+              authorName={liveSettings.hero.feedAuthorName}
+              authorMedia={liveSettings.hero.feedAuthorMedia}
               date={item.date}
               initialLikes={item.likes}
               replies={item.replies}
