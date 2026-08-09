@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { Share2, BookOpen, Quote, Briefcase, ExternalLink, Music, MoreHorizontal, Edit, Trash2, Pin, Loader2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PostInteractions } from '@/components/post-interactions'
@@ -74,7 +73,6 @@ function MediaGrid({ urls, onClick, altBase, onMediaClick }: { urls: string[]; o
 export function FeedItem({
   id, type, title, body, author, authorRole, authorName, authorMedia, date, tag, initialLikes = 0, replies = 0, rating, projectTech = [], projectLink, image, media, clientImage, linkedProjectId, pinned,
 }: FeedItemProps) {
-  const router = useRouter()
   const meta = TYPE_META[type] || TYPE_META['general']
   const TypeIcon = meta.icon
   const detailHref = id ? `/feed/${id}` : undefined
@@ -235,9 +233,18 @@ export function FeedItem({
                 ))}
               </div>
             )}
-            <p className="relative text-[15px] text-foreground/90 italic leading-relaxed line-clamp-4 whitespace-pre-wrap pl-2">
-              {body}
-            </p>
+            {detailHref ? (
+              <Link
+                href={detailHref}
+                className="relative block cursor-pointer text-[15px] text-foreground/90 italic leading-relaxed line-clamp-4 whitespace-pre-wrap pl-2 hover:text-foreground transition-colors"
+              >
+                {body}
+              </Link>
+            ) : (
+              <p className="relative text-[15px] text-foreground/90 italic leading-relaxed line-clamp-4 whitespace-pre-wrap pl-2">
+                {body}
+              </p>
+            )}
 
             {(author || authorRole) && (
               <div className="flex flex-col pt-4 mt-4 border-t border-border/50">
@@ -259,7 +266,16 @@ export function FeedItem({
           </div>
         ) : (
           <>
-            <p className="text-sm text-muted-foreground leading-relaxed mb-3 line-clamp-3 whitespace-pre-wrap">{body}</p>
+            {detailHref ? (
+              <Link
+                href={detailHref}
+                className="block cursor-pointer text-sm text-muted-foreground leading-relaxed mb-3 line-clamp-3 whitespace-pre-wrap hover:text-foreground transition-colors"
+              >
+                {body}
+              </Link>
+            ) : (
+              <p className="text-sm text-muted-foreground leading-relaxed mb-3 line-clamp-3 whitespace-pre-wrap">{body}</p>
+            )}
 
             {allMedia.length > 0 && (
               <div className="mb-3">
@@ -276,33 +292,19 @@ export function FeedItem({
         
         {projectTech.length > 0 && <div className="flex flex-wrap gap-1.5 mb-3">{projectTech.map((tech) => (<span key={tech} className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-muted text-muted-foreground">{tech}</span>))}</div>}
         {projectLink && (
-          // When this FeedItem is wrapped in a <Link> (detailHref is set), we
-          // cannot render another <a> inside it — invalid HTML and causes a
-          // React hydration error. Use a <button> that imperatively navigates
-          // so we stay within a single anchor context.
-          detailHref ? (
-            <button
-              type="button"
+          linkedProjectId ? (
+            <Link
+              href={`/portfolio/${linkedProjectId}`}
               className="inline-flex items-center gap-1 text-xs font-medium mb-3 transition-colors hover:opacity-80"
               style={{ color: '#f4a295' }}
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                const dest = linkedProjectId ? `/portfolio/${linkedProjectId}` : projectLink
-                if (linkedProjectId) {
-                  router.push(dest)
-                } else {
-                  window.open(dest, '_blank', 'noopener,noreferrer')
-                }
-              }}
             >
               <ExternalLink size={11} /> View project details
-            </button>
+            </Link>
           ) : (
             <a
-              href={linkedProjectId ? `/portfolio/${linkedProjectId}` : projectLink}
-              target={linkedProjectId ? undefined : '_blank'}
-              rel={linkedProjectId ? undefined : 'noopener noreferrer'}
+              href={projectLink}
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-xs font-medium mb-3 transition-colors hover:opacity-80"
               style={{ color: '#f4a295' }}
             >
@@ -311,23 +313,10 @@ export function FeedItem({
           )
         )}
 
-        <div className="relative cursor-default mt-1" onClick={(e) => { e.preventDefault(); e.stopPropagation() }}>
+        <div className="relative cursor-default mt-1">
           <div className="absolute top-4 right-0 flex items-center gap-5 pt-3 z-10 bg-background pl-2">
-            {/* When detailHref is set the whole card is already a <Link>, so
-                "Read more" must be a button — not a nested anchor. */}
             {detailHref && (
-              detailHref ? (
-                <button
-                  type="button"
-                  className="text-xs font-semibold transition-colors hover:underline"
-                  style={{ color: '#f4a295' }}
-                  onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(detailHref) }}
-                >
-                  Read more →
-                </button>
-              ) : (
-                <Link href={detailHref} className="text-xs font-semibold transition-colors hover:underline" style={{ color: '#f4a295' }}>Read more →</Link>
-              )
+              <Link href={detailHref} className="text-xs font-semibold transition-colors hover:underline" style={{ color: '#f4a295' }}>Read more →</Link>
             )}
             <button className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors" aria-label="Share" onClick={handleShare}><Share2 size={15} /></button>
           </div>
@@ -397,8 +386,8 @@ export function FeedItem({
     </div>
   )
 
-  const articleContent = (
-    <>
+  return (
+    <article className={cn('px-4 py-5 border-b border-border transition-colors relative', pinned && 'bg-[#f4a295]/5')}>
       {pinned && (
         <div className="flex items-center gap-1.5 mb-2 ml-[52px]">
           <Pin size={11} className="text-[#f4a295]" />
@@ -406,34 +395,6 @@ export function FeedItem({
         </div>
       )}
       {inner}
-    </>
-  )
-
-  if (detailHref) {
-    return (
-      <Link
-        href={detailHref}
-        prefetch={true}
-        className={cn('block px-4 py-5 border-b border-border transition-colors relative cursor-pointer hover:bg-muted/30', pinned && 'bg-[#f4a295]/5')}
-        aria-label={title ? `Read full post: ${title}` : undefined}
-        onClick={(e) => {
-          // If the click originated on an interactive child, prevent the outer
-          // Link from navigating so the child can handle it independently.
-          const target = e.target as HTMLElement
-          const interactive = target.closest('button, a[href], audio, video, input')
-          if (interactive && interactive !== e.currentTarget) {
-            e.preventDefault()
-          }
-        }}
-      >
-        {articleContent}
-      </Link>
-    )
-  }
-
-  return (
-    <article className={cn('px-4 py-5 border-b border-border transition-colors relative', pinned && 'bg-[#f4a295]/5')}>
-      {articleContent}
     </article>
   )
 }
