@@ -1,11 +1,12 @@
 'use client'
 
+import { useState } from 'react'
 import useSWR from 'swr'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Share2,
-  BookOpen, Quote, Briefcase, ExternalLink, TrendingUp, Music,
+  BookOpen, Quote, Briefcase, ExternalLink, TrendingUp, Music, X,
 } from 'lucide-react'
 import { PageShell } from '@/components/page-shell'
 import { PostInteractions } from '@/components/post-interactions'
@@ -39,6 +40,7 @@ export function FeedDetailClient({
 }: FeedDetailClientProps) {
   const router = useRouter()
   const id = initialItem.id
+  const [lightboxMedia, setLightboxMedia] = useState<string | null>(null)
 
   // SWR revalidates in the background but never blocks the initial render —
   // `fallbackData` means the UI shows instantly with the server-fetched data.
@@ -181,8 +183,12 @@ export function FeedDetailClient({
                 const isAudio = /\.(mp3|ogg|wav|aac|flac|m4a)$/i.test(url)
                 if (isVideo) {
                   return (
-                    <div key={i} className="rounded-2xl overflow-hidden bg-black">
-                      <video src={url} controls className="w-full max-h-80 object-contain" />
+                    <div
+                      key={i}
+                      className="rounded-2xl overflow-hidden bg-black cursor-pointer"
+                      onClick={(e) => { e.stopPropagation(); setLightboxMedia(url) }}
+                    >
+                      <SmartMedia src={url} alt={`${item.title} — video ${i + 1}`} className="w-full max-h-80 object-contain" controls={false} />
                     </div>
                   )
                 }
@@ -205,12 +211,16 @@ export function FeedDetailClient({
                   )
                 }
                 return (
-                  <div key={i} className="rounded-2xl overflow-hidden bg-muted" style={{ aspectRatio: '16/9' }}>
-                    <img
+                  <div
+                    key={i}
+                    className="rounded-2xl overflow-hidden bg-muted cursor-pointer"
+                    style={{ aspectRatio: '16/9' }}
+                    onClick={(e) => { e.stopPropagation(); setLightboxMedia(url) }}
+                  >
+                    <SmartMedia
                       src={url}
                       alt={allMedia.length > 1 ? `${item.title} — image ${i + 1} of ${allMedia.length}` : item.title}
                       className="w-full h-full object-cover"
-                      loading={i === 0 ? 'eager' : 'lazy'}
                     />
                   </div>
                 )
@@ -378,6 +388,39 @@ export function FeedDetailClient({
               </p>
             </div>
           </Link>
+        </div>
+      )}
+
+      {lightboxMedia && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-sm animate-in fade-in"
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            setLightboxMedia(null)
+          }}
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              setLightboxMedia(null)
+            }}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center bg-white/10 text-white hover:bg-white/20 transition-colors z-10"
+            aria-label="Close lightbox"
+          >
+            <X size={20} />
+          </button>
+          <div onClick={(e) => e.stopPropagation()}>
+            <SmartMedia
+              src={lightboxMedia}
+              alt={item.title}
+              className="max-w-[95vw] max-h-[90vh] object-contain"
+              controls
+              autoPlay
+            />
+          </div>
         </div>
       )}
     </PageShell>
