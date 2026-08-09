@@ -9,12 +9,16 @@ import {
 } from 'lucide-react'
 import { PageShell } from '@/components/page-shell'
 import { PostInteractions } from '@/components/post-interactions'
+import { SmartMedia } from '@/components/shared/smart-media'
 import type { FeedItem, Project } from '@/lib/types'
 
 interface FeedDetailClientProps {
   initialItem: FeedItem
   initialLinkedProject: Project | null
   initialRelatedProjects: Project[]
+  /** Global site-owner identity (Admin → Edit Profile → Feed Post Identity), used when this post has no author of its own. */
+  authorName?: string
+  authorMedia?: string
 }
 
 const TYPE_META = {
@@ -30,6 +34,8 @@ export function FeedDetailClient({
   initialItem,
   initialLinkedProject,
   initialRelatedProjects,
+  authorName,
+  authorMedia,
 }: FeedDetailClientProps) {
   const router = useRouter()
   const id = initialItem.id
@@ -50,8 +56,14 @@ export function FeedDetailClient({
   const meta =
     TYPE_META[item.type as keyof typeof TYPE_META] ?? TYPE_META.post
   const TypeIcon = meta.icon
-  const displayName =
+
+  // Author identity resolution: a post's own author/clientImage (e.g. a
+  // testimonial's client) always wins; otherwise fall back to the global
+  // feed identity configured in Admin → Edit Profile.
+  const postAuthor =
     item.type === 'testimonial' ? (item.clientName ?? item.author) : item.author
+  const displayName = postAuthor || authorName || 'Zihad Imtiase'
+  const avatarSrc = item.clientImage || authorMedia || ''
 
   const linkedProject = initialLinkedProject
   const relatedProjects = initialRelatedProjects
@@ -77,12 +89,24 @@ export function FeedDetailClient({
       <article className="px-5 py-6">
         {/* Author row */}
         <div className="flex items-center gap-3 mb-5">
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-base shrink-0"
-            style={{ backgroundColor: '#f4a295', color: '#1a1a1a' }}
-          >
-            {(displayName || 'A').slice(0, 2).toUpperCase()}
-          </div>
+          {avatarSrc ? (
+            <SmartMedia
+              src={avatarSrc}
+              alt={displayName}
+              className="w-12 h-12 rounded-full object-cover shrink-0"
+              autoPlay
+              muted
+              loop
+              controls={false}
+            />
+          ) : (
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-base shrink-0"
+              style={{ backgroundColor: '#f4a295', color: '#1a1a1a' }}
+            >
+              {(displayName || 'A').slice(0, 2).toUpperCase()}
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <p className="font-bold text-sm text-foreground">{displayName}</p>
             {item.clientRole && <p className="text-xs text-muted-foreground">{item.clientRole}</p>}

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { readFeedData, readPortfolioData } from '@/lib/data'
+import { readFeedData, readPortfolioData, readSettingsData } from '@/lib/data'
 import { FeedDetailClient } from '@/components/feed-detail-client'
 import { JsonLd } from '@/components/json-ld'
 import {
@@ -63,9 +63,10 @@ export default async function FeedDetailPage({
 }) {
   const { id } = await params
 
-  const [feedData, portfolioData] = await Promise.all([
+  const [feedData, portfolioData, settings] = await Promise.all([
     readFeedData(),
     readPortfolioData(),
+    readSettingsData(),
   ])
 
   const item = feedData.items.find((i) => i.id === id) as FeedItem | undefined
@@ -108,6 +109,8 @@ export default async function FeedDetailPage({
         initialItem={item}
         initialLinkedProject={linkedProject}
         initialRelatedProjects={relatedProjects}
+        authorName={settings.hero.feedAuthorName}
+        authorMedia={settings.hero.feedAuthorMedia}
       />
     </>
   )

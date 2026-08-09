@@ -106,6 +106,7 @@ export function FeedItem({
   }
 
   const handleEdit = (e: React.MouseEvent) => {
+    e.preventDefault()
     e.stopPropagation()
     setIsMenuOpen(false)
     window.dispatchEvent(new CustomEvent('edit-post', {
@@ -114,6 +115,7 @@ export function FeedItem({
   }
 
   const handlePinToggle = async (e: React.MouseEvent) => {
+    e.preventDefault()
     e.stopPropagation()
     setIsMenuOpen(false)
     const res = await updateFeedItem(id!, { pinned: !pinned } as Parameters<typeof updateFeedItem>[1])
@@ -121,6 +123,7 @@ export function FeedItem({
   }
 
   const triggerDelete = (e: React.MouseEvent) => {
+    e.preventDefault()
     e.stopPropagation()
     setIsMenuOpen(false)
     setShowDeleteConfirm(true)
@@ -174,7 +177,11 @@ export function FeedItem({
           </span>
 
           {isAdmin && (
-            <div className="relative" ref={menuRef}>
+            <div
+              className="relative"
+              ref={menuRef}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
+            >
               <button
                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIsMenuOpen(!isMenuOpen) }}
                 className="p-1 rounded-full hover:bg-muted text-muted-foreground transition-colors ml-1"
@@ -184,7 +191,10 @@ export function FeedItem({
               </button>
 
               {isMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 w-36 bg-card border border-border rounded-xl shadow-lg overflow-hidden z-50 animate-in fade-in zoom-in-95">
+                <div
+                  className="absolute right-0 top-full mt-1 w-36 bg-card border border-border rounded-xl shadow-lg overflow-hidden z-50 animate-in fade-in zoom-in-95"
+                  onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
+                >
                   <button onClick={handleEdit} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-foreground hover:bg-muted transition-colors text-left">
                     <Edit size={14} /> Edit
                   </button>
