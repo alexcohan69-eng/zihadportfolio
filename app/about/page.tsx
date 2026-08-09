@@ -58,6 +58,10 @@ export default async function AboutPage() {
   const aboutMedia: string[] = Array.isArray(siteSettings?.about?.media) ? siteSettings.about.media : []
   const primaryMedia = aboutMedia[0] ?? ''
   const extraMedia = aboutMedia.slice(1)
+
+  const aboutVideoAutoplay: boolean = siteSettings?.about?.aboutVideoAutoplay ?? false
+  const aboutVideoControls: boolean = siteSettings?.about?.aboutVideoControls ?? true
+  const aboutVideoMuted: boolean = siteSettings?.about?.aboutVideoMuted ?? false
   
   const introText = siteSettings?.about?.introText || 'I help startups, agencies, and growing businesses turn their ideas into high-performing websites. My focus is always the same: websites that look great and drive measurable results.'
   const location = siteSettings?.hero?.location || 'Dhaka Cantonment, Bangladesh'
@@ -102,6 +106,10 @@ export default async function AboutPage() {
                 src={primaryMedia}
                 alt={`${displayName}, ${jobTitle}`}
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                autoPlay={aboutVideoAutoplay}
+                controls={aboutVideoControls}
+                muted={aboutVideoMuted}
+                loop={aboutVideoAutoplay}
               />
               <div className="absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-white/10 pointer-events-none z-20" />
             </div>

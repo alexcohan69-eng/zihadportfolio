@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MediaPicker } from '@/components/media-picker'
+import { Switch } from '@/components/ui/switch'
 import type { SiteSettings } from '@/lib/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -56,6 +57,20 @@ function SectionHeader({ icon: Icon, label, accent = '#f4a295', open, onToggle }
         : <ChevronDown size={15} className="text-muted-foreground group-hover:text-foreground transition-colors" />
       }
     </button>
+  )
+}
+
+function ToggleRow({ label, hint, checked, onCheckedChange }: {
+  label: string; hint?: string; checked: boolean; onCheckedChange: (val: boolean) => void
+}) {
+  return (
+    <div className="flex items-center justify-between gap-4 py-2.5">
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-foreground">{label}</p>
+        {hint && <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{hint}</p>}
+      </div>
+      <Switch checked={checked} onCheckedChange={onCheckedChange} className="shrink-0" />
+    </div>
   )
 }
 
@@ -462,6 +477,30 @@ export function EditProfilePage({ settings }: EditProfilePageProps) {
                 </div>
               </div>
             </div>
+
+            {isVideo(form.about.media[0] ?? '') && (
+              <div className="mt-4 pt-4 border-t border-border/60 divide-y divide-border/60">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Cover Video Playback</p>
+                <ToggleRow
+                  label="Enable Autoplay"
+                  hint="Cover video starts playing automatically when the About page loads."
+                  checked={form.about.aboutVideoAutoplay}
+                  onCheckedChange={(val) => setAbout('aboutVideoAutoplay', val)}
+                />
+                <ToggleRow
+                  label="Show Video Controls"
+                  hint="Display the native play/pause/volume controls on the cover video."
+                  checked={form.about.aboutVideoControls}
+                  onCheckedChange={(val) => setAbout('aboutVideoControls', val)}
+                />
+                <ToggleRow
+                  label="Mute Video Sound"
+                  hint="Cover video plays without audio. Required by browsers for autoplay."
+                  checked={form.about.aboutVideoMuted}
+                  onCheckedChange={(val) => setAbout('aboutVideoMuted', val)}
+                />
+              </div>
+            )}
           </div>
         )}
 
