@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MediaPickerModal } from './media-picker-modal'
-import { ToastStack, UploadFormatPicker, type UploadFormat } from './shared'
+import { ToastStack } from './shared'
 import { useToast } from '@/hooks/use-toast'
 import { TechTagInput } from './tech-tag-input'
 import { CreatableSelect } from './creatable-select'
@@ -136,7 +136,6 @@ export function FeedManager() {
   const [activeKind, setActiveKind] = useState<PostKind | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [uploadFormat, setUploadFormat] = useState<UploadFormat>('webp')
   const { toasts, addToast } = useToast()
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
 
@@ -467,8 +466,6 @@ export function FeedManager() {
         </div>
         <TypePickerPopover onSelect={openNew} />
       </div>
-
-      <UploadFormatPicker value={uploadFormat} onChange={setUploadFormat} />
 
       {/* ── Unified form panel ── */}
       {activeKind && (
