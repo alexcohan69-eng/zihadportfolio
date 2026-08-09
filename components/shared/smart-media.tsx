@@ -6,6 +6,7 @@ interface SmartMediaProps {
   autoPlay?: boolean
   muted?: boolean
   loop?: boolean
+  onPlay?: (e: React.SyntheticEvent<HTMLVideoElement>) => void
 }
 
 const VIDEO_PATTERN = /\.(mp4|webm|ogg|mov|m4v|avi)(\?|$)/i
@@ -30,6 +31,7 @@ export function SmartMedia({
   autoPlay = false,
   muted = false,
   loop = false,
+  onPlay,
 }: SmartMediaProps) {
   if (!src) return null
 
@@ -47,6 +49,7 @@ export function SmartMedia({
         playsInline
         className={className}
         aria-label={alt || undefined}
+        onPlay={onPlay}
       />
     )
   }
