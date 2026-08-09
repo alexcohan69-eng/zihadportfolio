@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Share2, BookOpen, Quote, Briefcase, ExternalLink, Music, MoreHorizontal, Edit, Trash2, Pin, Loader2 } from 'lucide-react'
+import { Share2, BookOpen, Quote, Briefcase, ExternalLink, Music, MoreHorizontal, Edit, Trash2, Pin, Loader2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { PostInteractions } from '@/components/post-interactions'
 import { deleteFeedItem, updateFeedItem } from '@/lib/data-actions'
@@ -50,15 +50,19 @@ function getMediaType(url: string): 'image' | 'video' | 'audio' {
   return 'image'
 }
 
-function MediaGrid({ urls, onClick, altBase }: { urls: string[]; onClick?: (e: React.MouseEvent) => void; altBase?: string }) {
+function MediaGrid({ urls, onClick, altBase, onMediaClick }: { urls: string[]; onClick?: (e: React.MouseEvent) => void; altBase?: string; onMediaClick?: (url: string) => void }) {
   const count = urls.length
   if (count === 0) return null
 
   const renderItem = (url: string, index: number, className?: string) => {
     const kind = getMediaType(url)
-    if (kind === 'video') return <div key={index} className={cn('relative overflow-hidden bg-black rounded-xl', className)} onClick={(e) => e.stopPropagation()}><SmartMedia src={url} alt={`${altBase ?? 'Post'} video ${index + 1}`} className="w-full h-full object-contain" /></div>
+    const openLightbox = (e: React.MouseEvent) => {
+      e.stopPropagation()
+      onMediaClick?.(url)
+    }
+    if (kind === 'video') return <div key={index} className={cn('relative overflow-hidden bg-black rounded-xl cursor-pointer', className)} onClick={openLightbox}><SmartMedia src={url} alt={`${altBase ?? 'Post'} video ${index + 1}`} className="w-full h-full object-contain" controls={false} /></div>
     if (kind === 'audio') return <div key={index} className={cn('flex flex-col items-center justify-center gap-2.5 rounded-xl bg-muted border border-border p-4', className)} onClick={(e) => e.stopPropagation()}><div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#f4a29520' }}><Music size={18} style={{ color: '#f4a295' }} /></div><audio src={url} controls className="w-full max-w-full h-8" aria-label={`${altBase ?? 'Post'} audio ${index + 1}`} style={{ accentColor: '#f4a295' }}/></div>
-    return <div key={index} className={cn('overflow-hidden bg-muted rounded-xl', className)}><SmartMedia src={url} alt={`${altBase ?? 'Post'} image ${index + 1}`} className="w-full h-full object-cover hover:scale-[1.02] transition-transform duration-300" /></div>
+    return <div key={index} className={cn('overflow-hidden bg-muted rounded-xl cursor-pointer', className)} onClick={openLightbox}><SmartMedia src={url} alt={`${altBase ?? 'Post'} image ${index + 1}`} className="w-full h-full object-cover hover:scale-[1.02] transition-transform duration-300" /></div>
   }
 
   if (count === 1) return <div className={cn('w-full rounded-xl overflow-hidden', getMediaType(urls[0]) !== 'audio' && 'bg-muted')} style={getMediaType(urls[0]) === 'audio' ? {} : { aspectRatio: '16/9' }} onClick={onClick}>{renderItem(urls[0], 0, 'w-full h-full')}</div>
@@ -80,6 +84,7 @@ export function FeedItem({
   
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [lightboxMedia, setLightboxMedia] = useState<string | null>(null)
 
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -249,7 +254,16 @@ export function FeedItem({
           </div>
         )}
 
-        {allMedia.length > 0 && <div className="mb-3"><MediaGrid urls={allMedia} altBase={title || author || meta.label} onClick={(e) => e.preventDefault()} /></div>}
+        {allMedia.length > 0 && (
+          <div className="mb-3">
+            <MediaGrid
+              urls={allMedia}
+              altBase={title || author || meta.label}
+              onClick={(e) => e.preventDefault()}
+              onMediaClick={(url) => setLightboxMedia(url)}
+            />
+          </div>
+        )}
         
         {projectTech.length > 0 && <div className="flex flex-wrap gap-1.5 mb-3">{projectTech.map((tech) => (<span key={tech} className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-muted text-muted-foreground">{tech}</span>))}</div>}
         {projectLink && (
@@ -335,6 +349,39 @@ export function FeedItem({
                 Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {lightboxMedia && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/95 backdrop-blur-sm animate-in fade-in"
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            setLightboxMedia(null)
+          }}
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              setLightboxMedia(null)
+            }}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center bg-white/10 text-white hover:bg-white/20 transition-colors z-10"
+            aria-label="Close lightbox"
+          >
+            <X size={20} />
+          </button>
+          <div onClick={(e) => e.stopPropagation()}>
+            <SmartMedia
+              src={lightboxMedia}
+              alt={title || author || 'Media'}
+              className="max-w-[95vw] max-h-[90vh] object-contain"
+              controls
+              autoPlay
+            />
           </div>
         </div>
       )}
