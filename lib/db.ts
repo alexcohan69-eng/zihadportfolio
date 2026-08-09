@@ -56,3 +56,20 @@ export async function getDb(dbName = 'zihad_portfolio') {
   const client = await getClientPromise()
   return client.db(dbName)
 }
+
+let usersIndexEnsured = false
+
+/**
+ * Guarantees a unique index on `users.email` exists so a race between two
+ * concurrent registration requests can never insert two accounts with the
+ * same email (the app-level "does this email exist" check alone cannot
+ * prevent that). Safe to call on every request — `createIndex` is a no-op
+ * once the index exists, and the module-level flag skips the round trip
+ * entirely after the first successful call in this process.
+ */
+export async function ensureUsersIndexes(dbName = 'zihad_portfolio') {
+  if (usersIndexEnsured) return
+  const client = await getClientPromise()
+  await client.db(dbName).collection('users').createIndex({ email: 1 }, { unique: true })
+  usersIndexEnsured = true
+}
