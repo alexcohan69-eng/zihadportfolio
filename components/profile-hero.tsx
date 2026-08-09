@@ -150,6 +150,10 @@ export function ProfileHero({
             src={coverMedia}
             alt={`${displayName} — cover photo`}
             className="absolute inset-0 w-full h-full object-cover"
+            autoPlay={true}
+            muted={true}
+            loop={true}
+            controls={false}
           />
         ) : (
           <div
@@ -191,6 +195,10 @@ export function ProfileHero({
                 src={profileMedia}
                 alt={displayName}
                 className="w-24 h-24 md:w-28 md:h-28 rounded-full border-4 border-background object-cover shadow-md"
+                autoPlay={true}
+                muted={true}
+                loop={true}
+                controls={false}
               />
             ) : (
               <div
