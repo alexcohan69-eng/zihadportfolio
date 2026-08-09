@@ -6,10 +6,11 @@ import {
   Save, Loader2, User, Hash, Calendar, BarChart2,
   MapPin, Phone, ChevronDown, ChevronUp, CheckCircle2,
   MousePointerClick, ArrowLeft, Image as ImageIcon, BookOpen,
-  Code2, Heart, Clock, X, Plus, Link2,
+  Code2, Heart, Clock, X, Plus, Link2, PlayCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MediaPicker } from '@/components/media-picker'
+import { Switch } from '@/components/ui/switch'
 import type { SiteSettings } from '@/lib/types'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -59,6 +60,20 @@ function SectionHeader({ icon: Icon, label, accent = '#f4a295', open, onToggle }
   )
 }
 
+function SwitchRow({ label, hint, checked, onCheckedChange }: {
+  label: string; hint?: string; checked: boolean; onCheckedChange: (val: boolean) => void
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 bg-muted/30 border border-border rounded-xl px-3.5 py-3">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-foreground">{label}</p>
+        {hint && <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{hint}</p>}
+      </div>
+      <Switch checked={checked} onCheckedChange={onCheckedChange} className="shrink-0" />
+    </div>
+  )
+}
+
 function DeleteBtn({ onClick, className }: { onClick: () => void; className?: string }) {
   return (
     <button
@@ -96,6 +111,7 @@ export function EditProfilePage({ settings }: EditProfilePageProps) {
     contact: false,
     button: false,
     gallery: false,
+    videoPlayback: false,
     intro: false,
     values: false,
     stack: false,
@@ -462,6 +478,34 @@ export function EditProfilePage({ settings }: EditProfilePageProps) {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── Primary Video Playback ── */}
+        <SectionHeader icon={PlayCircle} label="Video Playback" accent="#9db8e8" open={openSections.videoPlayback} onToggle={() => toggleSection('videoPlayback')} />
+        {openSections.videoPlayback && (
+          <div className="pt-4 pb-5 space-y-2.5">
+            <p className="text-[11px] text-muted-foreground -mt-1 mb-1">
+              Applies only when the cover item in the About Gallery above is a video.
+            </p>
+            <SwitchRow
+              label="Enable Autoplay"
+              hint="Video starts playing automatically when the page loads."
+              checked={form.about.aboutVideoAutoplay}
+              onCheckedChange={(val) => setAbout('aboutVideoAutoplay', val)}
+            />
+            <SwitchRow
+              label="Show Video Controls"
+              hint="Displays the native play/pause/volume bar on the video."
+              checked={form.about.aboutVideoControls}
+              onCheckedChange={(val) => setAbout('aboutVideoControls', val)}
+            />
+            <SwitchRow
+              label="Mute Video Sound"
+              hint="Most browsers require this to be on for autoplay to work."
+              checked={form.about.aboutVideoMuted}
+              onCheckedChange={(val) => setAbout('aboutVideoMuted', val)}
+            />
           </div>
         )}
 

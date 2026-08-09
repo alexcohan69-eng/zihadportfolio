@@ -183,6 +183,10 @@ export interface AboutSettings {
   timeline: TimelineItem[]
   stack: StackItem[]
   values: ValueItem[]
+  /** Playback settings for the primary About page media, when it's a video. */
+  aboutVideoAutoplay: boolean
+  aboutVideoControls: boolean
+  aboutVideoMuted: boolean
 }
 
 export interface ContactSettings {

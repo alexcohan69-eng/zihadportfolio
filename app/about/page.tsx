@@ -102,6 +102,10 @@ export default async function AboutPage() {
                 src={primaryMedia}
                 alt={`${displayName}, ${jobTitle}`}
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                autoPlay={siteSettings?.about?.aboutVideoAutoplay}
+                controls={siteSettings?.about?.aboutVideoControls}
+                muted={siteSettings?.about?.aboutVideoMuted}
+                loop={siteSettings?.about?.aboutVideoAutoplay}
               />
               <div className="absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-white/10 pointer-events-none z-20" />
             </div>
