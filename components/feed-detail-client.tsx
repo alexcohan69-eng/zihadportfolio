@@ -57,14 +57,12 @@ export function FeedDetailClient({
     TYPE_META[item.type as keyof typeof TYPE_META] ?? TYPE_META.post
   const TypeIcon = meta.icon
 
-  // Author identity resolution: a post's own author/clientImage (e.g. a
-  // testimonial's client) always wins; otherwise fall back to the global
-  // feed identity configured in Admin → Edit Profile.
-  const displayName =
-    (item.type === 'testimonial' ? item.clientName : item.author) ||
-    authorName ||
-    'Zihad Imtiase'
-  const avatarSrc = item.clientImage || authorMedia || ''
+  // Header identity: ALWAYS the main Feed Author (Admin → Edit Profile →
+  // Feed Post Identity). It must never be replaced by a testimonial's
+  // client name/photo — those are rendered separately inside the
+  // testimonial client card below.
+  const displayName = authorName || 'Zihad Imtiase'
+  const avatarSrc = authorMedia || ''
 
   const linkedProject = initialLinkedProject
   const relatedProjects = initialRelatedProjects
@@ -110,7 +108,6 @@ export function FeedDetailClient({
           )}
           <div className="flex-1 min-w-0">
             <p className="font-bold text-sm text-foreground">{displayName}</p>
-            {item.clientRole && <p className="text-xs text-muted-foreground">{item.clientRole}</p>}
             <div className="flex items-center gap-1.5 mt-0.5">
               <TypeIcon size={11} style={{ color: meta.color }} />
               <span className="text-[11px] font-medium" style={{ color: meta.color }}>{meta.label}</span>
@@ -139,6 +136,34 @@ export function FeedDetailClient({
             {Array.from({ length: 5 }).map((_, i) => (
               <span key={i} className="text-base" style={{ color: i < item.rating! ? '#f4a295' : '#444' }}>★</span>
             ))}
+          </div>
+        )}
+
+        {/* Testimonial client card — the client's identity lives here, never in the header */}
+        {item.type === 'testimonial' && (item.clientName || item.clientImage) && (
+          <div className="flex items-center gap-3 mb-5 p-4 rounded-2xl border border-border bg-muted/40">
+            {item.clientImage ? (
+              <SmartMedia
+                src={item.clientImage}
+                alt={item.clientName || 'Client'}
+                className="w-12 h-12 rounded-full object-cover shrink-0"
+                autoPlay
+                muted
+                loop
+                controls={false}
+              />
+            ) : (
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-base shrink-0"
+                style={{ backgroundColor: '#a8d5c2', color: '#1a1a1a' }}
+              >
+                {(item.clientName || 'C').slice(0, 2).toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0">
+              {item.clientName && <p className="font-bold text-sm text-foreground truncate">{item.clientName}</p>}
+              {item.clientRole && <p className="text-xs text-muted-foreground truncate">{item.clientRole}</p>}
+            </div>
           </div>
         )}
 

@@ -141,11 +141,12 @@ export function FeedItem({
     }
   }
 
-  // Author identity resolution: a post's own author/clientImage (e.g. a
-  // testimonial's client) always wins; otherwise fall back to the global
-  // feed identity configured in Admin → Edit Profile.
-  const avatarSrc = clientImage || authorMedia || ''
-  const displayAuthor = author || authorName || 'Zihad Imtiase'
+  // Header identity: ALWAYS the main Feed Author (Admin → Edit Profile →
+  // Feed Post Identity). It must never be replaced by a testimonial's
+  // client name/photo — those are rendered separately inside the
+  // testimonial body card below.
+  const avatarSrc = authorMedia || ''
+  const displayAuthor = authorName || 'Zihad Imtiase'
 
   const inner = (
     <div className="flex items-start gap-3 relative">
@@ -169,7 +170,7 @@ export function FeedItem({
         
         <div className="flex items-center gap-2 flex-wrap mb-0.5">
           <span className="font-semibold text-sm text-foreground">{displayAuthor}</span>
-          {authorRole && <span className="text-xs text-muted-foreground">{authorRole}</span>}
+          {type !== 'testimonial' && authorRole && <span className="text-xs text-muted-foreground">{authorRole}</span>}
           
           <span className="text-xs text-muted-foreground ml-auto shrink-0 flex items-center gap-1">
             {date}
@@ -220,6 +221,33 @@ export function FeedItem({
         {title && <h3 className="font-bold text-base text-foreground mb-2 text-pretty leading-snug">{title}</h3>}
         {type === 'testimonial' && rating && <div className="flex gap-0.5 mb-2">{Array.from({ length: 5 }).map((_, i) => (<span key={i} className="text-xs" style={{ color: i < rating ? '#f4a295' : '#555' }}>★</span>))}</div>}
         <p className="text-sm text-muted-foreground leading-relaxed mb-3 line-clamp-3 whitespace-pre-wrap">{body}</p>
+
+        {type === 'testimonial' && (author || clientImage) && (
+          <div className="flex items-center gap-3 mb-3 p-3 rounded-xl border border-border bg-muted/40">
+            {clientImage ? (
+              <SmartMedia
+                src={clientImage}
+                alt={author || 'Client'}
+                className="w-12 h-12 rounded-full object-cover shrink-0"
+                autoPlay
+                muted
+                loop
+                controls={false}
+              />
+            ) : (
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 font-bold text-sm"
+                style={{ backgroundColor: '#a8d5c2', color: '#1a1a1a' }}
+              >
+                {(author || 'C').slice(0, 2).toUpperCase()}
+              </div>
+            )}
+            <div className="min-w-0">
+              {author && <p className="font-bold text-sm text-foreground truncate">{author}</p>}
+              {authorRole && <p className="text-xs text-muted-foreground truncate">{authorRole}</p>}
+            </div>
+          </div>
+        )}
 
         {allMedia.length > 0 && <div className="mb-3"><MediaGrid urls={allMedia} altBase={title || author || meta.label} onClick={(e) => e.preventDefault()} /></div>}
         
