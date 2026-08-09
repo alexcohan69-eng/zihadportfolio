@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast'
 import { CreatableSelect } from './creatable-select'
 import { TechTagInput } from './tech-tag-input'
 import { SmartMedia } from '@/components/shared/smart-media'
+import { uploadFileDirect } from '@/lib/upload-client'
 
 interface ContentBlock {
   id: string
@@ -169,17 +170,13 @@ export function PortfolioManager() {
     setGalleryUploading(true)
     const uploaded: string[] = []
     for (const file of Array.from(files)) {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('format', uploadFormat) // Compress format logic
-
       try {
-        const res = await fetch('/api/upload', { method: 'POST', body: fd })
-        const data = await res.json()
-        if (data.success) uploaded.push(data.url)
-        else addToast(`Upload failed: ${file.name}`, false)
-      } catch {
-        addToast(`Upload failed: ${file.name}`, false)
+        // Direct-to-Cloudinary signed upload — bypasses Vercel's 4.5MB
+        // serverless payload limit so large videos upload reliably.
+        const result = await uploadFileDirect(file, { entityType: 'portfolio-projects' })
+        uploaded.push(result.url)
+      } catch (e) {
+        addToast(e instanceof Error ? e.message : `Upload failed: ${file.name}`, false)
       }
     }
     if (uploaded.length > 0) {

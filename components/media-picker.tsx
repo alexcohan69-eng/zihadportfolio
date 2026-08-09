@@ -6,6 +6,7 @@ import { Upload, MonitorUp, Library, Loader2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MediaPickerModal } from './admin/media-picker-modal'
 import { useToast } from '@/hooks/use-toast'
+import { uploadFileDirect } from '@/lib/upload-client'
 
 interface MediaFile {
   url: string
@@ -40,21 +41,15 @@ export function MediaPicker({ onSelect, multiple = false, disabled = false }: Me
     const filesToUpload = multiple ? Array.from(files) : [files[0]]
 
     for (const file of filesToUpload) {
-      const fd = new FormData()
-      fd.append('file', file)
-      
-      const isVideoOrAudio = file.type.startsWith('video/') || file.type.startsWith('audio/')
-      fd.append('format', isVideoOrAudio ? 'original' : 'webp')
-
       try {
-        const res = await fetch('/api/upload', { method: 'POST', body: fd })
-        const data = await res.json()
-        if (data.success) {
-          const fileType = file.type.startsWith('video/') ? 'video' : file.type.startsWith('audio/') ? 'audio' : 'image'
-          uploadedMedia.push({ url: data.url, type: fileType })
-        }
+        // Direct-to-Cloudinary signed upload — bypasses Vercel's 4.5MB
+        // serverless payload limit so large videos upload reliably.
+        const result = await uploadFileDirect(file)
+        const fileType = file.type.startsWith('video/') ? 'video' : file.type.startsWith('audio/') ? 'audio' : 'image'
+        uploadedMedia.push({ url: result.url, type: fileType })
       } catch (e) {
         console.error('Upload failed', e)
+        addToast(e instanceof Error ? e.message : `Upload failed: ${file.name}`, false)
       }
     }
 
