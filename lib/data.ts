@@ -113,6 +113,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     hireMeLink: '/contact',
     profileButtonText: 'Hire Me',
     profileButtonLink: '/contact',
+    feedAuthorName: 'Zihad Imtiase',
+    feedAuthorMedia: '',
   },
   about: {
     media: [],

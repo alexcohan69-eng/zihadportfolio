@@ -19,6 +19,9 @@ interface FeedItemProps {
   body: string
   author?: string
   authorRole?: string
+  /** Global site-owner identity (from Admin → Edit Profile → Feed Post Identity), used when this post has no author of its own. */
+  authorName?: string
+  authorMedia?: string
   date: string
   tag?: string
   initialLikes?: number
@@ -65,7 +68,7 @@ function MediaGrid({ urls, onClick, altBase }: { urls: string[]; onClick?: (e: R
 }
 
 export function FeedItem({
-  id, type, title, body, author, authorRole, date, tag, initialLikes = 0, replies = 0, rating, projectTech = [], projectLink, image, media, clientImage, linkedProjectId, pinned,
+  id, type, title, body, author, authorRole, authorName, authorMedia, date, tag, initialLikes = 0, replies = 0, rating, projectTech = [], projectLink, image, media, clientImage, linkedProjectId, pinned,
 }: FeedItemProps) {
   const router = useRouter()
   const meta = TYPE_META[type] || TYPE_META['general']
@@ -135,16 +138,34 @@ export function FeedItem({
     }
   }
 
+  // Author identity resolution: a post's own author/clientImage (e.g. a
+  // testimonial's client) always wins; otherwise fall back to the global
+  // feed identity configured in Admin → Edit Profile.
+  const avatarSrc = clientImage || authorMedia || ''
+  const displayAuthor = author || authorName || 'Zihad Imtiase'
+
   const inner = (
     <div className="flex items-start gap-3 relative">
-      <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-sm" style={{ backgroundColor: '#f4a295', color: '#1a1a1a' }}>
-        {(author || 'Z').slice(0, 2).toUpperCase()}
-      </div>
+      {avatarSrc ? (
+        <SmartMedia
+          src={avatarSrc}
+          alt={displayAuthor}
+          className="w-10 h-10 rounded-full object-cover shrink-0"
+          autoPlay
+          muted
+          loop
+          controls={false}
+        />
+      ) : (
+        <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-sm" style={{ backgroundColor: '#f4a295', color: '#1a1a1a' }}>
+          {(displayAuthor || 'Z').slice(0, 2).toUpperCase()}
+        </div>
+      )}
 
       <div className="flex-1 min-w-0">
         
         <div className="flex items-center gap-2 flex-wrap mb-0.5">
-          <span className="font-semibold text-sm text-foreground">{author || 'Zihad Imtiase'}</span>
+          <span className="font-semibold text-sm text-foreground">{displayAuthor}</span>
           {authorRole && <span className="text-xs text-muted-foreground">{authorRole}</span>}
           
           <span className="text-xs text-muted-foreground ml-auto shrink-0 flex items-center gap-1">
