@@ -132,9 +132,10 @@ export function FeedDetailClient({
           {item.title}
         </h1>
 
-        {/* Testimonial quote card — rating, quote, and the client's identity all
-            live here; the header above always stays the main Feed Author. */}
-        {item.type === 'testimonial' && (
+        {/* Testimonial quote card — rating, quote, client identity, and the post's
+            own media all live here; the header above always stays the main Feed
+            Author. */}
+        {item.type === 'testimonial' ? (
           <div className="relative mt-4 mb-5 p-5 rounded-2xl bg-muted/40 border border-border/50">
             <Quote size={32} className="absolute top-5 left-5 text-muted-foreground/20" fill="currentColor" strokeWidth={0} />
 
@@ -146,94 +147,133 @@ export function FeedDetailClient({
               </div>
             )}
 
-            {(item.clientName || item.clientImage) && (
-              <div className="flex items-center gap-3 pt-4 mt-4 border-t border-border/50">
-                {item.clientImage ? (
-                  <SmartMedia
-                    src={item.clientImage}
-                    alt={item.clientName || 'Client'}
-                    className="w-10 h-10 rounded-full object-cover border border-border/50 shrink-0"
-                    autoPlay
-                    muted
-                    loop
-                    controls={false}
-                  />
-                ) : (
-                  <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shrink-0 border border-border/50"
-                    style={{ backgroundColor: '#a8d5c2', color: '#1a1a1a' }}
-                  >
-                    {(item.clientName || 'C').slice(0, 2).toUpperCase()}
-                  </div>
-                )}
-                <div className="min-w-0">
-                  {item.clientName && <span className="block font-semibold text-sm text-foreground truncate">{item.clientName}</span>}
-                  {item.clientRole && <span className="block text-xs text-muted-foreground truncate">{item.clientRole}</span>}
-                </div>
+            {(item.clientName || item.clientRole) && (
+              <div className="flex flex-col pt-4 mt-4 border-t border-border/50">
+                {item.clientName && <span className="font-semibold text-sm text-foreground truncate">{item.clientName}</span>}
+                {item.clientRole && <span className="text-xs text-muted-foreground truncate">{item.clientRole}</span>}
               </div>
             )}
-          </div>
-        )}
 
-        {/* Media — full gallery */}
-        {(() => {
-          const allMedia: string[] = (() => {
-            const arr = item.media && item.media.length > 0 ? item.media : item.image ? [item.image] : []
-            return Array.from(new Set(arr.filter(Boolean)))
-          })()
-          if (allMedia.length === 0) return null
-          return (
-            <div className="mb-5 space-y-2">
-              {allMedia.map((url, i) => {
-                const isVideo = /\.(mp4|webm|mov)$/i.test(url)
-                const isAudio = /\.(mp3|ogg|wav|aac|flac|m4a)$/i.test(url)
-                if (isVideo) {
+            {(() => {
+              const allMedia: string[] = (() => {
+                const arr = item.media && item.media.length > 0 ? item.media : item.image ? [item.image] : []
+                return Array.from(new Set(arr.filter(Boolean)))
+              })()
+              if (allMedia.length === 0) return null
+              return (
+                <div className="space-y-2 mt-4">
+                  {allMedia.map((url, i) => {
+                    const isVideo = /\.(mp4|webm|mov)$/i.test(url)
+                    const isAudio = /\.(mp3|ogg|wav|aac|flac|m4a)$/i.test(url)
+                    if (isVideo) {
+                      return (
+                        <div
+                          key={i}
+                          className="rounded-xl overflow-hidden bg-black cursor-pointer"
+                          onClick={(e) => { e.stopPropagation(); setLightboxMedia(url) }}
+                        >
+                          <SmartMedia src={url} alt={`${item.title} — video ${i + 1}`} className="w-full max-h-80 object-contain" controls={false} />
+                        </div>
+                      )
+                    }
+                    if (isAudio) {
+                      return (
+                        <div key={i} className="rounded-xl border border-border bg-background flex items-center gap-4 p-4">
+                          <div
+                            className="w-12 h-12 rounded-full flex items-center justify-center shrink-0"
+                            style={{ backgroundColor: '#f4a29520' }}
+                          >
+                            <Music size={22} style={{ color: '#f4a295' }} />
+                          </div>
+                          <audio
+                            src={url}
+                            controls
+                            className="flex-1 h-9"
+                            style={{ accentColor: '#f4a295' }}
+                          />
+                        </div>
+                      )
+                    }
+                    return (
+                      <div
+                        key={i}
+                        className="rounded-xl overflow-hidden bg-background cursor-pointer"
+                        style={{ aspectRatio: '16/9' }}
+                        onClick={(e) => { e.stopPropagation(); setLightboxMedia(url) }}
+                      >
+                        <SmartMedia
+                          src={url}
+                          alt={allMedia.length > 1 ? `${item.title} — image ${i + 1} of ${allMedia.length}` : item.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })()}
+          </div>
+        ) : (
+          /* Media — full gallery */
+          (() => {
+            const allMedia: string[] = (() => {
+              const arr = item.media && item.media.length > 0 ? item.media : item.image ? [item.image] : []
+              return Array.from(new Set(arr.filter(Boolean)))
+            })()
+            if (allMedia.length === 0) return null
+            return (
+              <div className="mb-5 space-y-2">
+                {allMedia.map((url, i) => {
+                  const isVideo = /\.(mp4|webm|mov)$/i.test(url)
+                  const isAudio = /\.(mp3|ogg|wav|aac|flac|m4a)$/i.test(url)
+                  if (isVideo) {
+                    return (
+                      <div
+                        key={i}
+                        className="rounded-2xl overflow-hidden bg-black cursor-pointer"
+                        onClick={(e) => { e.stopPropagation(); setLightboxMedia(url) }}
+                      >
+                        <SmartMedia src={url} alt={`${item.title} — video ${i + 1}`} className="w-full max-h-80 object-contain" controls={false} />
+                      </div>
+                    )
+                  }
+                  if (isAudio) {
+                    return (
+                      <div key={i} className="rounded-2xl border border-border bg-muted flex items-center gap-4 p-4">
+                        <div
+                          className="w-12 h-12 rounded-full flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: '#f4a29520' }}
+                        >
+                          <Music size={22} style={{ color: '#f4a295' }} />
+                        </div>
+                        <audio
+                          src={url}
+                          controls
+                          className="flex-1 h-9"
+                          style={{ accentColor: '#f4a295' }}
+                        />
+                      </div>
+                    )
+                  }
                   return (
                     <div
                       key={i}
-                      className="rounded-2xl overflow-hidden bg-black cursor-pointer"
+                      className="rounded-2xl overflow-hidden bg-muted cursor-pointer"
+                      style={{ aspectRatio: '16/9' }}
                       onClick={(e) => { e.stopPropagation(); setLightboxMedia(url) }}
                     >
-                      <SmartMedia src={url} alt={`${item.title} — video ${i + 1}`} className="w-full max-h-80 object-contain" controls={false} />
-                    </div>
-                  )
-                }
-                if (isAudio) {
-                  return (
-                    <div key={i} className="rounded-2xl border border-border bg-muted flex items-center gap-4 p-4">
-                      <div
-                        className="w-12 h-12 rounded-full flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: '#f4a29520' }}
-                      >
-                        <Music size={22} style={{ color: '#f4a295' }} />
-                      </div>
-                      <audio
+                      <SmartMedia
                         src={url}
-                        controls
-                        className="flex-1 h-9"
-                        style={{ accentColor: '#f4a295' }}
+                        alt={allMedia.length > 1 ? `${item.title} — image ${i + 1} of ${allMedia.length}` : item.title}
+                        className="w-full h-full object-cover"
                       />
                     </div>
                   )
-                }
-                return (
-                  <div
-                    key={i}
-                    className="rounded-2xl overflow-hidden bg-muted cursor-pointer"
-                    style={{ aspectRatio: '16/9' }}
-                    onClick={(e) => { e.stopPropagation(); setLightboxMedia(url) }}
-                  >
-                    <SmartMedia
-                      src={url}
-                      alt={allMedia.length > 1 ? `${item.title} — image ${i + 1} of ${allMedia.length}` : item.title}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                )
-              })}
-            </div>
-          )
-        })()}
+                })}
+              </div>
+            )
+          })()
+        )}
 
         {/* Excerpt */}
         <p className="text-base text-foreground leading-relaxed font-medium mb-4">{item.excerpt}</p>

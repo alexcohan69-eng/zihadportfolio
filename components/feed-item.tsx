@@ -239,46 +239,39 @@ export function FeedItem({
               {body}
             </p>
 
-            {(author || clientImage) && (
-              <div className="flex items-center gap-3 pt-4 mt-4 border-t border-border/50">
-                {clientImage ? (
-                  <SmartMedia
-                    src={clientImage}
-                    alt={author || 'Client'}
-                    className="w-10 h-10 rounded-full object-cover border border-border/50 shrink-0"
-                    autoPlay
-                    muted
-                    loop
-                    controls={false}
-                  />
-                ) : (
-                  <div
-                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-xs border border-border/50"
-                    style={{ backgroundColor: '#a8d5c2', color: '#1a1a1a' }}
-                  >
-                    {(author || 'C').slice(0, 2).toUpperCase()}
-                  </div>
-                )}
-                <div className="min-w-0">
-                  {author && <span className="block font-semibold text-sm text-foreground truncate">{author}</span>}
-                  {authorRole && <span className="block text-xs text-muted-foreground truncate">{authorRole}</span>}
-                </div>
+            {(author || authorRole) && (
+              <div className="flex flex-col pt-4 mt-4 border-t border-border/50">
+                {author && <span className="font-semibold text-sm text-foreground truncate">{author}</span>}
+                {authorRole && <span className="text-xs text-muted-foreground truncate">{authorRole}</span>}
+              </div>
+            )}
+
+            {allMedia.length > 0 && (
+              <div className="mt-4">
+                <MediaGrid
+                  urls={allMedia}
+                  altBase={title || author || meta.label}
+                  onClick={(e) => e.preventDefault()}
+                  onMediaClick={(url) => setLightboxMedia(url)}
+                />
               </div>
             )}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground leading-relaxed mb-3 line-clamp-3 whitespace-pre-wrap">{body}</p>
-        )}
+          <>
+            <p className="text-sm text-muted-foreground leading-relaxed mb-3 line-clamp-3 whitespace-pre-wrap">{body}</p>
 
-        {allMedia.length > 0 && (
-          <div className="mb-3">
-            <MediaGrid
-              urls={allMedia}
-              altBase={title || author || meta.label}
-              onClick={(e) => e.preventDefault()}
-              onMediaClick={(url) => setLightboxMedia(url)}
-            />
-          </div>
+            {allMedia.length > 0 && (
+              <div className="mb-3">
+                <MediaGrid
+                  urls={allMedia}
+                  altBase={title || author || meta.label}
+                  onClick={(e) => e.preventDefault()}
+                  onMediaClick={(url) => setLightboxMedia(url)}
+                />
+              </div>
+            )}
+          </>
         )}
         
         {projectTech.length > 0 && <div className="flex flex-wrap gap-1.5 mb-3">{projectTech.map((tech) => (<span key={tech} className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-muted text-muted-foreground">{tech}</span>))}</div>}
