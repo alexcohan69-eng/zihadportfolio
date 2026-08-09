@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import {
-  Trash2, Edit2, Plus, X, Check, Loader2, Briefcase, Clock, DollarSign, ListChecks, Power, ImagePlus, Film, Music,
+  Trash2, Edit2, Plus, X, Check, Loader2, Briefcase, Clock, DollarSign, ListChecks, Power, ImagePlus, Music,
   MessageSquareQuote, Share2, Send,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -325,9 +325,11 @@ export function ServicesManager() {
                     <div key={url} className="relative aspect-square rounded-xl overflow-hidden border border-border bg-muted group/media">
                       {kind === 'image' ? (
                         <img src={url} alt="" className="w-full h-full object-cover" />
+                      ) : kind === 'video' ? (
+                        <video src={url} muted playsInline className="w-full h-full object-cover" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                          {kind === 'video' ? <Film size={18} /> : <Music size={18} />}
+                          <Music size={18} />
                         </div>
                       )}
                       <button

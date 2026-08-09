@@ -757,7 +757,11 @@ export function FeedManager() {
                   <div className="grid grid-cols-3 gap-2 mb-2">
                     {(projectForm.images ?? []).map((url, i) => (
                       <div key={url + i} className="relative group/img rounded-xl overflow-hidden bg-muted border border-border">
-                        <img src={url} alt="" className="w-full h-20 object-cover" />
+                        {/\.(mp4|webm|mov)$/i.test(url) ? (
+                          <video src={url} muted className="w-full h-20 object-cover" />
+                        ) : (
+                          <img src={url} alt="" className="w-full h-20 object-cover" />
+                        )}
                         {i === 0 && <div className="absolute top-1 left-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-black/70 text-white">Cover</div>}
                         <button type="button" onClick={() => removeGalleryImage(i)} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity"><X size={10} /></button>
                       </div>
@@ -774,7 +778,7 @@ export function FeedManager() {
                   <div onClick={() => setProjectPickerOpen(true)} className="border-2 border-dashed rounded-xl transition-colors cursor-pointer border-border hover:border-[#9db8e8]/50 hover:bg-muted/30">
                     <div className="flex flex-col items-center gap-1.5 py-4 text-muted-foreground"><ImagePlus size={18} /><span className="text-xs">Choose Existing</span></div>
                   </div>
-                  <input ref={galleryRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => e.target.files && handleGalleryUpload(e.target.files)} />
+                  <input ref={galleryRef} type="file" accept="image/*,video/mp4,video/webm,video/quicktime" multiple className="hidden" onChange={(e) => e.target.files && handleGalleryUpload(e.target.files)} />
                 </div>
               </div>
 

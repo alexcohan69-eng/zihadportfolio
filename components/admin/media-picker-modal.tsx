@@ -166,6 +166,8 @@ export function MediaPickerModal({ isOpen, onClose, onSelect, multiple = false }
                   >
                     {res.resource_type === 'image' ? (
                       <img src={res.secure_url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                    ) : res.resource_type === 'video' && !['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a'].includes(res.format) ? (
+                      <video src={res.secure_url} muted playsInline className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full bg-muted flex flex-col items-center justify-center text-muted-foreground">
                         {getMediaIcon(res.resource_type, res.format)}
