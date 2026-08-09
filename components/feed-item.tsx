@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { Share2, BookOpen, Quote, Briefcase, ExternalLink, Music, MoreHorizontal, Edit, Trash2, Pin, Loader2, X, Maximize2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Share2, BookOpen, Quote, Briefcase, ExternalLink, Music, MoreHorizontal, Edit, Trash2, Pin, Loader2, Maximize2 } from 'lucide-react'
+import { cn, pauseOtherVideos } from '@/lib/utils'
 import { PostInteractions } from '@/components/post-interactions'
 import { deleteFeedItem, updateFeedItem } from '@/lib/data-actions'
 import { useAdminStatus } from '@/hooks/use-admin-status'
 import { SmartMedia } from '@/components/shared/smart-media'
+import { LightboxGallery } from '@/components/shared/lightbox-gallery'
 
 type FeedType = 'testimonial' | 'project' | 'portfolio' | 'post' | 'general'
 
@@ -49,7 +50,7 @@ function getMediaType(url: string): 'image' | 'video' | 'audio' {
   return 'image'
 }
 
-function MediaGrid({ urls, onClick, altBase, onMediaClick }: { urls: string[]; onClick?: (e: React.MouseEvent) => void; altBase?: string; onMediaClick?: (url: string) => void }) {
+function MediaGrid({ urls, onClick, altBase, onMediaClick }: { urls: string[]; onClick?: (e: React.MouseEvent) => void; altBase?: string; onMediaClick?: (index: number) => void }) {
   const count = urls.length
   if (count === 0) return null
 
@@ -57,7 +58,7 @@ function MediaGrid({ urls, onClick, altBase, onMediaClick }: { urls: string[]; o
     const kind = getMediaType(url)
     const openLightbox = (e: React.MouseEvent) => {
       e.stopPropagation()
-      onMediaClick?.(url)
+      onMediaClick?.(index)
     }
     if (kind === 'video') {
       // Inline-playable video: native controls handle play/pause/seek directly
@@ -71,10 +72,16 @@ function MediaGrid({ urls, onClick, altBase, onMediaClick }: { urls: string[]; o
           className={cn('group relative overflow-hidden bg-black rounded-xl', className)}
           onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
         >
-          <SmartMedia src={url} alt={`${altBase ?? 'Post'} video ${index + 1}`} className="w-full h-full object-contain" controls />
+          <SmartMedia
+            src={url}
+            alt={`${altBase ?? 'Post'} video ${index + 1}`}
+            className="w-full h-full object-contain"
+            controls
+            onPlay={(e) => pauseOtherVideos(e.currentTarget)}
+          />
           <button
             type="button"
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMediaClick?.(url) }}
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onMediaClick?.(index) }}
             className="absolute top-2 right-2 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm transition-colors hover:bg-black/80"
             aria-label="Expand video"
           >
@@ -105,7 +112,7 @@ export function FeedItem({
   
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [lightboxMedia, setLightboxMedia] = useState<string | null>(null)
+  const [lightboxState, setLightboxState] = useState<{ media: string[]; index: number } | null>(null)
 
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -282,7 +289,7 @@ export function FeedItem({
                   urls={allMedia}
                   altBase={title || author || meta.label}
                   onClick={(e) => e.preventDefault()}
-                  onMediaClick={(url) => setLightboxMedia(url)}
+                  onMediaClick={(index) => setLightboxState({ media: allMedia, index })}
                 />
               </div>
             )}
@@ -306,7 +313,7 @@ export function FeedItem({
                   urls={allMedia}
                   altBase={title || author || meta.label}
                   onClick={(e) => e.preventDefault()}
-                  onMediaClick={(url) => setLightboxMedia(url)}
+                  onMediaClick={(index) => setLightboxState({ media: allMedia, index })}
                 />
               </div>
             )}
@@ -374,40 +381,14 @@ export function FeedItem({
         </div>
       )}
 
-      {lightboxMedia && (
-        <div
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-black animate-in fade-in duration-200"
-          onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            setLightboxMedia(null)
-          }}
-        >
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              setLightboxMedia(null)
-            }}
-            className="absolute top-4 left-4 sm:top-6 sm:left-6 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-md transition-colors hover:bg-white/20"
-            aria-label="Close lightbox"
-          >
-            <X size={22} />
-          </button>
-          <div
-            className="relative flex h-full w-full items-center justify-center"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <SmartMedia
-              src={lightboxMedia}
-              alt={title || author || 'Media'}
-              className="max-h-full max-w-full object-contain sm:max-h-[92vh] sm:max-w-[92vw]"
-              controls
-              autoPlay
-            />
-          </div>
-        </div>
+      {lightboxState && (
+        <LightboxGallery
+          media={lightboxState.media}
+          index={lightboxState.index}
+          alt={title || author || 'Media'}
+          onIndexChange={(index) => setLightboxState((s) => (s ? { ...s, index } : s))}
+          onClose={() => setLightboxState(null)}
+        />
       )}
     </div>
   )

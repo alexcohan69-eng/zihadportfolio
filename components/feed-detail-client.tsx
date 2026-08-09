@@ -6,11 +6,13 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Share2,
-  BookOpen, Quote, Briefcase, ExternalLink, TrendingUp, Music, X,
+  BookOpen, Quote, Briefcase, ExternalLink, TrendingUp, Music,
 } from 'lucide-react'
 import { PageShell } from '@/components/page-shell'
 import { PostInteractions } from '@/components/post-interactions'
 import { SmartMedia } from '@/components/shared/smart-media'
+import { LightboxGallery } from '@/components/shared/lightbox-gallery'
+import { pauseOtherVideos } from '@/lib/utils'
 import type { FeedItem, Project } from '@/lib/types'
 
 interface FeedDetailClientProps {
@@ -40,7 +42,7 @@ export function FeedDetailClient({
 }: FeedDetailClientProps) {
   const router = useRouter()
   const id = initialItem.id
-  const [lightboxMedia, setLightboxMedia] = useState<string | null>(null)
+  const [lightboxState, setLightboxState] = useState<{ media: string[]; index: number } | null>(null)
 
   // SWR revalidates in the background but never blocks the initial render —
   // `fallbackData` means the UI shows instantly with the server-fetched data.
@@ -170,9 +172,15 @@ export function FeedDetailClient({
                         <div
                           key={i}
                           className="rounded-xl overflow-hidden bg-black cursor-pointer"
-                          onClick={(e) => { e.stopPropagation(); setLightboxMedia(url) }}
+                          onClick={(e) => { e.stopPropagation(); setLightboxState({ media: allMedia, index: i }) }}
                         >
-                          <SmartMedia src={url} alt={`${item.title} — video ${i + 1}`} className="w-full max-h-80 object-contain" controls={false} />
+                          <SmartMedia
+                            src={url}
+                            alt={`${item.title} — video ${i + 1}`}
+                            className="w-full max-h-80 object-contain"
+                            controls={false}
+                            onPlay={(e) => pauseOtherVideos(e.currentTarget)}
+                          />
                         </div>
                       )
                     }
@@ -199,7 +207,7 @@ export function FeedDetailClient({
                         key={i}
                         className="rounded-xl overflow-hidden bg-background cursor-pointer"
                         style={{ aspectRatio: '16/9' }}
-                        onClick={(e) => { e.stopPropagation(); setLightboxMedia(url) }}
+                        onClick={(e) => { e.stopPropagation(); setLightboxState({ media: allMedia, index: i }) }}
                       >
                         <SmartMedia
                           src={url}
@@ -231,9 +239,15 @@ export function FeedDetailClient({
                       <div
                         key={i}
                         className="rounded-2xl overflow-hidden bg-black cursor-pointer"
-                        onClick={(e) => { e.stopPropagation(); setLightboxMedia(url) }}
+                        onClick={(e) => { e.stopPropagation(); setLightboxState({ media: allMedia, index: i }) }}
                       >
-                        <SmartMedia src={url} alt={`${item.title} — video ${i + 1}`} className="w-full max-h-80 object-contain" controls={false} />
+                        <SmartMedia
+                          src={url}
+                          alt={`${item.title} — video ${i + 1}`}
+                          className="w-full max-h-80 object-contain"
+                          controls={false}
+                          onPlay={(e) => pauseOtherVideos(e.currentTarget)}
+                        />
                       </div>
                     )
                   }
@@ -260,7 +274,7 @@ export function FeedDetailClient({
                       key={i}
                       className="rounded-2xl overflow-hidden bg-muted cursor-pointer"
                       style={{ aspectRatio: '16/9' }}
-                      onClick={(e) => { e.stopPropagation(); setLightboxMedia(url) }}
+                      onClick={(e) => { e.stopPropagation(); setLightboxState({ media: allMedia, index: i }) }}
                     >
                       <SmartMedia
                         src={url}
@@ -437,40 +451,14 @@ export function FeedDetailClient({
         </div>
       )}
 
-      {lightboxMedia && (
-        <div
-          className="fixed inset-0 z-[120] flex items-center justify-center bg-black animate-in fade-in duration-200"
-          onClick={(e) => {
-            e.preventDefault()
-            e.stopPropagation()
-            setLightboxMedia(null)
-          }}
-        >
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              setLightboxMedia(null)
-            }}
-            className="absolute top-4 left-4 sm:top-6 sm:left-6 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur-md transition-colors hover:bg-white/20"
-            aria-label="Close lightbox"
-          >
-            <X size={22} />
-          </button>
-          <div
-            className="relative flex h-full w-full items-center justify-center"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <SmartMedia
-              src={lightboxMedia}
-              alt={item.title}
-              className="max-h-full max-w-full object-contain sm:max-h-[92vh] sm:max-w-[92vw]"
-              controls
-              autoPlay
-            />
-          </div>
-        </div>
+      {lightboxState && (
+        <LightboxGallery
+          media={lightboxState.media}
+          index={lightboxState.index}
+          alt={item.title}
+          onIndexChange={(index) => setLightboxState((s) => (s ? { ...s, index } : s))}
+          onClose={() => setLightboxState(null)}
+        />
       )}
     </PageShell>
   )
