@@ -224,34 +224,50 @@ export function FeedItem({
         </div>
 
         {title && <h3 className="font-bold text-base text-foreground mb-2 text-pretty leading-snug">{title}</h3>}
-        {type === 'testimonial' && rating && <div className="flex gap-0.5 mb-2">{Array.from({ length: 5 }).map((_, i) => (<span key={i} className="text-xs" style={{ color: i < rating ? '#f4a295' : '#555' }}>★</span>))}</div>}
-        <p className="text-sm text-muted-foreground leading-relaxed mb-3 line-clamp-3 whitespace-pre-wrap">{body}</p>
 
-        {type === 'testimonial' && (author || clientImage) && (
-          <div className="flex items-center gap-3 mb-3 p-3 rounded-xl border border-border bg-muted/40">
-            {clientImage ? (
-              <SmartMedia
-                src={clientImage}
-                alt={author || 'Client'}
-                className="w-12 h-12 rounded-full object-cover shrink-0"
-                autoPlay
-                muted
-                loop
-                controls={false}
-              />
-            ) : (
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 font-bold text-sm"
-                style={{ backgroundColor: '#a8d5c2', color: '#1a1a1a' }}
-              >
-                {(author || 'C').slice(0, 2).toUpperCase()}
+        {type === 'testimonial' ? (
+          <div className="relative mt-4 mb-3 p-5 rounded-2xl bg-muted/40 border border-border/50">
+            <Quote size={28} className="absolute top-4 left-4 text-muted-foreground/20" fill="currentColor" strokeWidth={0} />
+            {rating && (
+              <div className="flex gap-0.5 mb-2.5">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <span key={i} className="text-xs" style={{ color: i < rating ? '#f4a295' : '#555' }}>★</span>
+                ))}
               </div>
             )}
-            <div className="min-w-0">
-              {author && <p className="font-bold text-sm text-foreground truncate">{author}</p>}
-              {authorRole && <p className="text-xs text-muted-foreground truncate">{authorRole}</p>}
-            </div>
+            <p className="relative text-[15px] text-foreground/90 italic leading-relaxed line-clamp-4 whitespace-pre-wrap pl-2">
+              {body}
+            </p>
+
+            {(author || clientImage) && (
+              <div className="flex items-center gap-3 pt-4 mt-4 border-t border-border/50">
+                {clientImage ? (
+                  <SmartMedia
+                    src={clientImage}
+                    alt={author || 'Client'}
+                    className="w-10 h-10 rounded-full object-cover border border-border/50 shrink-0"
+                    autoPlay
+                    muted
+                    loop
+                    controls={false}
+                  />
+                ) : (
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 font-bold text-xs border border-border/50"
+                    style={{ backgroundColor: '#a8d5c2', color: '#1a1a1a' }}
+                  >
+                    {(author || 'C').slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  {author && <span className="block font-semibold text-sm text-foreground truncate">{author}</span>}
+                  {authorRole && <span className="block text-xs text-muted-foreground truncate">{authorRole}</span>}
+                </div>
+              </div>
+            )}
           </div>
+        ) : (
+          <p className="text-sm text-muted-foreground leading-relaxed mb-3 line-clamp-3 whitespace-pre-wrap">{body}</p>
         )}
 
         {allMedia.length > 0 && (
@@ -302,7 +318,7 @@ export function FeedItem({
           )
         )}
 
-        <div className="relative cursor-default mt-1" onClick={(e) => e.stopPropagation()}>
+        <div className="relative cursor-default mt-1" onClick={(e) => { e.preventDefault(); e.stopPropagation() }}>
           <div className="absolute top-4 right-0 flex items-center gap-5 pt-3 z-10 bg-background pl-2">
             {/* When detailHref is set the whole card is already a <Link>, so
                 "Read more" must be a button — not a nested anchor. */}

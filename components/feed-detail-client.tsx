@@ -132,40 +132,46 @@ export function FeedDetailClient({
           {item.title}
         </h1>
 
-        {/* Star rating */}
-        {item.type === 'testimonial' && item.rating && (
-          <div className="flex gap-1 mb-4">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <span key={i} className="text-base" style={{ color: i < item.rating! ? '#f4a295' : '#444' }}>★</span>
-            ))}
-          </div>
-        )}
+        {/* Testimonial quote card — rating, quote, and the client's identity all
+            live here; the header above always stays the main Feed Author. */}
+        {item.type === 'testimonial' && (
+          <div className="relative mt-4 mb-5 p-5 rounded-2xl bg-muted/40 border border-border/50">
+            <Quote size={32} className="absolute top-5 left-5 text-muted-foreground/20" fill="currentColor" strokeWidth={0} />
 
-        {/* Testimonial client card — the client's identity lives here, never in the header */}
-        {item.type === 'testimonial' && (item.clientName || item.clientImage) && (
-          <div className="flex items-center gap-3 mb-5 p-4 rounded-2xl border border-border bg-muted/40">
-            {item.clientImage ? (
-              <SmartMedia
-                src={item.clientImage}
-                alt={item.clientName || 'Client'}
-                className="w-12 h-12 rounded-full object-cover shrink-0"
-                autoPlay
-                muted
-                loop
-                controls={false}
-              />
-            ) : (
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-base shrink-0"
-                style={{ backgroundColor: '#a8d5c2', color: '#1a1a1a' }}
-              >
-                {(item.clientName || 'C').slice(0, 2).toUpperCase()}
+            {item.rating && (
+              <div className="flex gap-1 mb-3">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <span key={i} className="text-base" style={{ color: i < item.rating! ? '#f4a295' : '#444' }}>★</span>
+                ))}
               </div>
             )}
-            <div className="min-w-0">
-              {item.clientName && <p className="font-bold text-sm text-foreground truncate">{item.clientName}</p>}
-              {item.clientRole && <p className="text-xs text-muted-foreground truncate">{item.clientRole}</p>}
-            </div>
+
+            {(item.clientName || item.clientImage) && (
+              <div className="flex items-center gap-3 pt-4 mt-4 border-t border-border/50">
+                {item.clientImage ? (
+                  <SmartMedia
+                    src={item.clientImage}
+                    alt={item.clientName || 'Client'}
+                    className="w-10 h-10 rounded-full object-cover border border-border/50 shrink-0"
+                    autoPlay
+                    muted
+                    loop
+                    controls={false}
+                  />
+                ) : (
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-xs shrink-0 border border-border/50"
+                    style={{ backgroundColor: '#a8d5c2', color: '#1a1a1a' }}
+                  >
+                    {(item.clientName || 'C').slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  {item.clientName && <span className="block font-semibold text-sm text-foreground truncate">{item.clientName}</span>}
+                  {item.clientRole && <span className="block text-xs text-muted-foreground truncate">{item.clientRole}</span>}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

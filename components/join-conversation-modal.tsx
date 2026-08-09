@@ -107,8 +107,20 @@ export function JoinConversationModal({ open, onClose, onAuthenticated, onAnonym
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in">
-      <div className="w-full max-w-sm bg-card border border-border rounded-3xl shadow-2xl overflow-hidden p-6 relative">
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in"
+      onClick={(e) => {
+        // Clicking the backdrop closes the modal but must never bubble up to
+        // the feed card's <Link>, which would otherwise navigate away.
+        e.preventDefault()
+        e.stopPropagation()
+        onClose()
+      }}
+    >
+      <div
+        className="w-full max-w-sm bg-card border border-border rounded-3xl shadow-2xl overflow-hidden p-6 relative"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation() }}
+      >
         <button
           onClick={onClose}
           className="absolute top-4 right-4 p-2 text-muted-foreground hover:bg-muted rounded-full transition-colors"
