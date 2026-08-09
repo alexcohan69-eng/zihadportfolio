@@ -75,9 +75,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       // resolved an existing DB user in `authorize`.
       if (account?.provider && account.provider !== 'credentials') {
         if (!user.email) return false
-        const dbUser = await upsertOAuthUser(user.email, user.name ?? '', account.provider)
-        user.id = dbUser.id
-        ;(user as any).role = dbUser.role
+        try {
+          const dbUser = await upsertOAuthUser(user.email, user.name ?? '', account.provider)
+          user.id = dbUser.id
+          ;(user as any).role = dbUser.role
+        } catch (err) {
+          // Never let a DB hiccup surface as an unhandled crash in the OAuth
+          // flow — bounce back to NextAuth's own error page instead so the
+          // client-side signIn() promise rejects cleanly and the UI can show
+          // a toast rather than a blank screen.
+          console.error(`[auth signIn] failed to upsert ${account.provider} user`, err)
+          return false
+        }
       }
 
       // Bridge into our existing signed-cookie session so the rest of the app
