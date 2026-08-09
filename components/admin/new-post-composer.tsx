@@ -19,7 +19,7 @@ import {
   X, Check, Upload, Loader2, Star,
   BookOpen, Quote, Briefcase, ChevronDown,
   Music, Film, ImagePlus, ExternalLink, Code,
-  AlignLeft, Image, GripVertical, Plus,
+  AlignLeft, Image, GripVertical, Plus, Sparkles,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MediaPickerModal } from '@/components/admin/media-picker-modal'
@@ -225,7 +225,81 @@ function MediaThumb({ url, onRemove }: { url: string; onRemove: () => void }) {
   )
 }
 
-// ─── Main Component ────────────────�����──────────────────────────────────────────
+// ──�� Main Component ────────────────�����──────────────────────────────────────────
+
+// ─── Posting Status Toast (Twitter-style) ──────────────────────────────────────
+
+export type PostingPhase = 'idle' | 'uploading' | 'publishing' | 'success'
+
+function PostingStatusToast({
+  phase,
+  progress,
+  accent,
+  label,
+}: {
+  phase: PostingPhase
+  progress: number
+  accent: string
+  label: string
+}) {
+  if (phase === 'idle') return null
+
+  const isUploading = phase === 'uploading'
+  const isSuccess = phase === 'success'
+
+  return (
+    <div
+      className="fixed inset-x-0 bottom-0 z-[60] flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pointer-events-none animate-in slide-in-from-bottom-6 fade-in duration-300"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="pointer-events-auto w-full max-w-sm rounded-2xl border border-border bg-card/95 backdrop-blur-md shadow-2xl overflow-hidden">
+        <div className="flex items-center gap-3 px-4 py-3.5">
+          <div
+            className="relative w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-colors"
+            style={{ backgroundColor: isSuccess ? '#a8d5c220' : accent + '20' }}
+          >
+            {isSuccess ? (
+              <Check size={16} className="animate-in zoom-in duration-300" style={{ color: '#a8d5c2' }} />
+            ) : (
+              <Loader2 size={16} className="animate-spin" style={{ color: accent }} />
+            )}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground truncate">
+              {isSuccess ? 'Published!' : isUploading ? 'Uploading media…' : label}
+            </p>
+            <p className="text-[11px] text-muted-foreground truncate">
+              {isSuccess
+                ? 'Your post is now live in the feed'
+                : isUploading
+                  ? `${Math.max(progress, 1)}% complete`
+                  : 'Saving your post…'}
+            </p>
+          </div>
+
+          {isSuccess && <Sparkles size={15} className="shrink-0" style={{ color: '#a8d5c2' }} />}
+        </div>
+
+        {/* Progress bar */}
+        <div className="h-1 w-full bg-muted overflow-hidden">
+          {isUploading ? (
+            <div
+              className="h-full rounded-full transition-[width] duration-200 ease-out"
+              style={{ width: `${Math.max(progress, 3)}%`, backgroundColor: accent }}
+            />
+          ) : (
+            <div
+              className={cn('h-full w-full', !isSuccess && 'animate-pulse')}
+              style={{ backgroundColor: isSuccess ? '#a8d5c2' : accent, opacity: isSuccess ? 1 : 0.5 }}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export interface NewPostComposerProps {
   open: boolean
@@ -265,6 +339,8 @@ export function NewPostComposer({
 
   // ── Shared ──
   const [saving, setSaving] = useState(false)
+  const [postingPhase, setPostingPhase] = useState<PostingPhase>('idle')
+  const [postingProgress, setPostingProgress] = useState(0)
 
   const feedFileRef = useRef<HTMLInputElement>(null)
   const galleryRef = useRef<HTMLInputElement>(null)
@@ -333,12 +409,23 @@ export function NewPostComposer({
 
   async function handleFeedUpload(files: FileList) {
     setFeedUploading(true)
+    setPostingPhase('uploading')
+    setPostingProgress(0)
+    const fileList = Array.from(files)
     const uploaded: string[] = []
-    for (const file of Array.from(files)) {
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i]
       try {
         // Direct-to-Cloudinary signed upload — bypasses Vercel's 4.5MB
         // serverless payload limit so large videos upload reliably.
-        const result = await uploadFileDirect(file, { entityType: 'feed-posts' })
+        const result = await uploadFileDirect(file, {
+          entityType: 'feed-posts',
+          onProgress: (pct) => {
+            // Blend per-file progress into an overall percentage across the batch.
+            const overall = Math.round(((i + pct / 100) / fileList.length) * 100)
+            setPostingProgress(overall)
+          },
+        })
         uploaded.push(result.url)
       } catch (e) {
         window.alert(e instanceof Error ? e.message : `Upload failed: ${file.name}`)
@@ -348,6 +435,8 @@ export function NewPostComposer({
       setFeedFormState((f) => ({ ...f, media: [...(f.media ?? []), ...uploaded] }))
     }
     setFeedUploading(false)
+    setPostingPhase('idle')
+    setPostingProgress(0)
   }
 
   function handleFeedSelectExisting(urls: string[]) {
@@ -366,12 +455,22 @@ export function NewPostComposer({
 
   async function handleGalleryUpload(files: FileList) {
     setGalleryUploading(true)
+    setPostingPhase('uploading')
+    setPostingProgress(0)
+    const fileList = Array.from(files)
     const uploaded: string[] = []
-    for (const file of Array.from(files)) {
+    for (let i = 0; i < fileList.length; i++) {
+      const file = fileList[i]
       try {
         // Direct-to-Cloudinary signed upload — bypasses Vercel's 4.5MB
         // serverless payload limit so large videos upload reliably.
-        const result = await uploadFileDirect(file, { entityType: 'portfolio-projects' })
+        const result = await uploadFileDirect(file, {
+          entityType: 'portfolio-projects',
+          onProgress: (pct) => {
+            const overall = Math.round(((i + pct / 100) / fileList.length) * 100)
+            setPostingProgress(overall)
+          },
+        })
         uploaded.push(result.url)
       } catch (e) {
         window.alert(e instanceof Error ? e.message : `Upload failed: ${file.name}`)
@@ -381,6 +480,8 @@ export function NewPostComposer({
       setProjectFormState((f) => ({ ...f, images: [...(f.images ?? []), ...uploaded] }))
     }
     setGalleryUploading(false)
+    setPostingPhase('idle')
+    setPostingProgress(0)
   }
 
   function handleProjectSelectExisting(urls: string[]) {
@@ -435,6 +536,8 @@ export function NewPostComposer({
   async function handleFeedSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
+    setPostingPhase('publishing')
+    setPostingProgress(0)
     const payload = {
       ...feedForm,
       category: FEED_CATEGORY_MAP[feedForm.type] ?? 'posts',
@@ -447,11 +550,26 @@ export function NewPostComposer({
         body: JSON.stringify(payload),
       })
       if (res.ok) {
-        onSuccess?.()
-        onClose()
+        // Brief success flash before the composer clears/closes and the feed
+        // refreshes — mirrors the "posted" confirmation moment on Twitter/X
+        // rather than snapping shut or reloading mid-animation.
+        setPostingPhase('success')
+        setTimeout(() => {
+          setPostingPhase('idle')
+          setSaving(false)
+          onClose()
+          onSuccess?.()
+        }, 900)
+        return
       }
-    } catch {}
-    finally { setSaving(false) }
+      setPostingPhase('idle')
+      setSaving(false)
+      window.alert('Failed to publish post. Please try again.')
+    } catch {
+      setPostingPhase('idle')
+      setSaving(false)
+      window.alert('Network error while publishing. Please try again.')
+    }
   }
 
   // ── Submit: Project ──
@@ -459,6 +577,8 @@ export function NewPostComposer({
   async function handleProjectSubmit(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
+    setPostingPhase('publishing')
+    setPostingProgress(0)
     const results = resultKey.trim() ? { [resultKey.trim()]: resultVal.trim() } : {}
     const coverImage = projectForm.images?.[0] ?? projectForm.image ?? ''
     const payload = { ...projectForm, tech: techTags, results, image: coverImage }
@@ -501,11 +621,24 @@ export function NewPostComposer({
           return next
         })
 
-        onSuccess?.()
-        onClose()
+        // Brief success flash before the composer clears/closes and the feed refreshes.
+        setPostingPhase('success')
+        setTimeout(() => {
+          setPostingPhase('idle')
+          setSaving(false)
+          onClose()
+          onSuccess?.()
+        }, 900)
+        return
       }
-    } catch {}
-    finally { setSaving(false) }
+      setPostingPhase('idle')
+      setSaving(false)
+      window.alert('Failed to save project. Please try again.')
+    } catch {
+      setPostingPhase('idle')
+      setSaving(false)
+      window.alert('Network error while saving. Please try again.')
+    }
   }
 
   // ─── Guard ───────────────────────────────────────────────────────────────────
@@ -515,6 +648,8 @@ export function NewPostComposer({
   const activeMeta = KIND_OPTIONS.find((k) => k.value === activeKind)!
   const feedMediaCount = (feedForm.media ?? []).length
   const galleryCount = (projectForm.images ?? []).length
+  // True from the moment "Publish"/"Add Project" is clicked until the toast finishes its success flash.
+  const isBusy = saving || postingPhase !== 'idle'
 
   // ─── Inner content (shared by modal & inline modes) ───────────────────────────
 
@@ -550,9 +685,10 @@ export function NewPostComposer({
                 key={value}
                 type="button"
                 onClick={() => switchKind(value)}
+                disabled={isBusy}
                 title={KIND_OPTIONS.find((k) => k.value === value)?.label}
                 className={cn(
-                  'w-7 h-7 rounded-lg flex items-center justify-center transition-all',
+                  'w-7 h-7 rounded-lg flex items-center justify-center transition-all disabled:opacity-40 disabled:pointer-events-none',
                   activeKind === value
                     ? 'bg-background shadow-sm'
                     : 'text-muted-foreground hover:text-foreground hover:bg-background/50',
@@ -566,7 +702,8 @@ export function NewPostComposer({
           <button
             type="button"
             onClick={onClose}
-            className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            disabled={isBusy}
+            className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:pointer-events-none"
           >
             <X size={15} />
           </button>
@@ -575,7 +712,8 @@ export function NewPostComposer({
 
       {/* ── POST / TESTIMONIAL FORM ── */}
       {(activeKind === 'post' || activeKind === 'testimonial') && (
-        <form onSubmit={handleFeedSubmit} className="p-5 space-y-4 overflow-y-auto max-h-[70vh]">
+        <form onSubmit={handleFeedSubmit} className="p-5 overflow-y-auto max-h-[70vh]">
+        <fieldset disabled={isBusy} className="space-y-4 disabled:opacity-60 transition-opacity">
           <div>
             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
               Title <span className="text-destructive">*</span>
@@ -681,16 +819,23 @@ export function NewPostComposer({
             {feedMediaCount < 4 && (
               <div className="grid grid-cols-2 gap-2">
                 <div
-                  className={cn('border-2 border-dashed rounded-xl transition-colors cursor-pointer', feedUploading ? 'border-brand/40 bg-brand/5' : 'border-border hover:border-[#f4a295]/50 hover:bg-muted/30')}
-                  onClick={() => !feedUploading && feedFileRef.current?.click()}
+                  className={cn(
+                    'border-2 border-dashed rounded-xl transition-colors',
+                    isBusy ? 'opacity-50 pointer-events-none cursor-not-allowed' : 'cursor-pointer',
+                    feedUploading ? 'border-brand/40 bg-brand/5' : 'border-border hover:border-[#f4a295]/50 hover:bg-muted/30',
+                  )}
+                  onClick={() => !feedUploading && !isBusy && feedFileRef.current?.click()}
                 >
                   <div className="flex flex-col items-center gap-1.5 py-4 text-muted-foreground">
                     {feedUploading ? <Loader2 size={18} className="animate-spin text-[#f4a295]" /> : <><Upload size={18} /><span className="text-xs">Upload New</span></>}
                   </div>
                 </div>
                 <div
-                  className="border-2 border-dashed rounded-xl transition-colors cursor-pointer border-border hover:border-[#f4a295]/50 hover:bg-muted/30"
-                  onClick={() => setFeedPickerOpen(true)}
+                  className={cn(
+                    'border-2 border-dashed rounded-xl transition-colors border-border hover:border-[#f4a295]/50 hover:bg-muted/30',
+                    isBusy ? 'opacity-50 pointer-events-none cursor-not-allowed' : 'cursor-pointer',
+                  )}
+                  onClick={() => !isBusy && setFeedPickerOpen(true)}
                 >
                   <div className="flex flex-col items-center gap-1.5 py-4 text-muted-foreground">
                     <ImagePlus size={18} /><span className="text-xs">Choose Existing</span>
@@ -714,23 +859,30 @@ export function NewPostComposer({
           <div className="flex gap-2 pt-1">
             <button
               type="submit"
-              disabled={saving}
+              disabled={isBusy}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 active:scale-95 disabled:opacity-60"
               style={{ backgroundColor: activeMeta.color, color: '#1a1a1a' }}
             >
-              {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-              Publish
+              {isBusy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+              {isBusy ? 'Publishing…' : 'Publish'}
             </button>
-            <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl text-sm font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isBusy}
+              className="px-5 py-2.5 rounded-xl text-sm font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-60"
+            >
               Cancel
             </button>
           </div>
+        </fieldset>
         </form>
       )}
 
       {/* ── PROJECT FORM ── */}
       {activeKind === 'project' && (
-        <form onSubmit={handleProjectSubmit} className="p-5 space-y-4 overflow-y-auto max-h-[70vh]">
+        <form onSubmit={handleProjectSubmit} className="p-5 overflow-y-auto max-h-[70vh]">
+        <fieldset disabled={isBusy} className="space-y-4 disabled:opacity-60 transition-opacity">
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Category</label>
@@ -739,7 +891,7 @@ export function NewPostComposer({
                 onChange={(val) => setProject('category', val)}
                 categories={categories}
                 onCreateCategory={handleCreateCategory}
-                disabled={saving}
+                disabled={isBusy}
               />
             </div>
             <div className="flex flex-col justify-end pb-0.5">
@@ -784,7 +936,7 @@ export function NewPostComposer({
               value={techTags}
               onChange={setTechTags}
               suggestions={techSuggestions}
-              disabled={saving}
+              disabled={isBusy}
             />
           </div>
 
@@ -840,12 +992,25 @@ export function NewPostComposer({
               </div>
             )}
             <div className="grid grid-cols-2 gap-2">
-              <div onClick={() => !galleryUploading && galleryRef.current?.click()} className={cn('border-2 border-dashed rounded-xl transition-colors cursor-pointer', galleryUploading ? 'border-brand/40 bg-brand/5' : 'border-border hover:border-[#9db8e8]/50 hover:bg-muted/30')}>
+              <div
+                onClick={() => !galleryUploading && !isBusy && galleryRef.current?.click()}
+                className={cn(
+                  'border-2 border-dashed rounded-xl transition-colors',
+                  isBusy ? 'opacity-50 pointer-events-none cursor-not-allowed' : 'cursor-pointer',
+                  galleryUploading ? 'border-brand/40 bg-brand/5' : 'border-border hover:border-[#9db8e8]/50 hover:bg-muted/30',
+                )}
+              >
                 <div className="flex flex-col items-center gap-1.5 py-4 text-muted-foreground">
                   {galleryUploading ? <Loader2 size={18} className="animate-spin text-[#9db8e8]" /> : <><Upload size={18} /><span className="text-xs">Upload New</span></>}
                 </div>
               </div>
-              <div onClick={() => setProjectPickerOpen(true)} className="border-2 border-dashed rounded-xl transition-colors cursor-pointer border-border hover:border-[#9db8e8]/50 hover:bg-muted/30">
+              <div
+                onClick={() => !isBusy && setProjectPickerOpen(true)}
+                className={cn(
+                  'border-2 border-dashed rounded-xl transition-colors border-border hover:border-[#9db8e8]/50 hover:bg-muted/30',
+                  isBusy ? 'opacity-50 pointer-events-none cursor-not-allowed' : 'cursor-pointer',
+                )}
+              >
                 <div className="flex flex-col items-center gap-1.5 py-4 text-muted-foreground"><ImagePlus size={18} /><span className="text-xs">Choose Existing</span></div>
               </div>
               <input ref={galleryRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={(e) => e.target.files && handleGalleryUpload(e.target.files)} />
@@ -911,22 +1076,35 @@ export function NewPostComposer({
           <div className="flex gap-2 pt-1">
             <button
               type="submit"
-              disabled={saving}
+              disabled={isBusy}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 active:scale-95 disabled:opacity-60"
               style={{ backgroundColor: '#9db8e8', color: '#1a1a1a' }}
             >
-              {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-              Add Project
+              {isBusy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+              {isBusy ? 'Saving…' : 'Add Project'}
             </button>
-            <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl text-sm font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isBusy}
+              className="px-5 py-2.5 rounded-xl text-sm font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-60"
+            >
               Cancel
             </button>
           </div>
+        </fieldset>
         </form>
       )}
 
       <MediaPickerModal isOpen={feedPickerOpen} onClose={() => setFeedPickerOpen(false)} multiple={true} onSelect={handleFeedSelectExisting} />
       <MediaPickerModal isOpen={projectPickerOpen} onClose={() => setProjectPickerOpen(false)} multiple={true} onSelect={handleProjectSelectExisting} />
+
+      <PostingStatusToast
+        phase={postingPhase}
+        progress={postingProgress}
+        accent={activeMeta.color}
+        label={activeKind === 'project' ? 'Publishing project…' : 'Publishing post…'}
+      />
     </div>
   )
 

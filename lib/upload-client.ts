@@ -20,6 +20,8 @@ export type UploadEntityType =
 interface DirectUploadOptions {
   entityType?: UploadEntityType
   identifier?: string
+  /** Called with a 0–100 value as the browser streams the file to Cloudinary. */
+  onProgress?: (percent: number) => void
 }
 
 export interface DirectUploadResult {
@@ -57,7 +59,7 @@ export async function uploadFileDirect(
   file: File,
   options: DirectUploadOptions = {},
 ): Promise<DirectUploadResult> {
-  const { entityType = 'feed-media', identifier } = options
+  const { entityType = 'feed-media', identifier, onProgress } = options
 
   // 1. Get a signed payload from our server — the server never sees the file.
   const signParams = new URLSearchParams({ entityType })
@@ -85,19 +87,13 @@ export async function uploadFileDirect(
   fd.append('use_filename', String(sign.use_filename))
   fd.append('unique_filename', String(sign.unique_filename))
 
-  let uploadRes: Response
-  try {
-    uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${sign.cloud_name}/auto/upload`, {
-      method: 'POST',
-      body: fd,
-    })
-  } catch {
-    throw new Error('Network error while uploading to Cloudinary')
-  }
+  // Use XHR (instead of fetch) only when the caller wants live progress —
+  // it's the only browser API that exposes upload-progress events.
+  const data = onProgress
+    ? await uploadWithProgress(sign.cloud_name, fd, onProgress)
+    : await uploadWithFetch(sign.cloud_name, fd)
 
-  const data = await uploadRes.json().catch(() => ({}))
-
-  if (!uploadRes.ok || data.error) {
+  if (data.error) {
     throw new Error(data.error?.message || `Cloudinary rejected the upload (${file.name})`)
   }
 
@@ -106,4 +102,53 @@ export async function uploadFileDirect(
     secure_url: data.secure_url,
     public_id: data.public_id,
   }
+}
+
+function uploadWithFetch(cloudName: string, fd: FormData): Promise<any> {
+  return fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+    method: 'POST',
+    body: fd,
+  })
+    .catch(() => {
+      throw new Error('Network error while uploading to Cloudinary')
+    })
+    .then(async (res) => {
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok && !data.error) data.error = { message: 'Cloudinary rejected the upload' }
+      return data
+    })
+}
+
+function uploadWithProgress(
+  cloudName: string,
+  fd: FormData,
+  onProgress: (percent: number) => void,
+): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`)
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
+    }
+
+    xhr.onload = () => {
+      let data: any = {}
+      try {
+        data = JSON.parse(xhr.responseText)
+      } catch {
+        data = { error: { message: 'Cloudinary returned an invalid response' } }
+      }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        if (!data.error) data.error = { message: 'Cloudinary rejected the upload' }
+      } else {
+        onProgress(100)
+      }
+      resolve(data)
+    }
+
+    xhr.onerror = () => reject(new Error('Network error while uploading to Cloudinary'))
+
+    xhr.send(fd)
+  })
 }
