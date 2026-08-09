@@ -7,7 +7,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MediaPickerModal } from './media-picker-modal'
-import { ToastStack, UploadFormatPicker, type UploadFormat } from './shared'
+import { ToastStack } from './shared'
 import { useToast } from '@/hooks/use-toast'
 import { CreatableSelect } from './creatable-select'
 import { TechTagInput } from './tech-tag-input'
@@ -64,7 +64,6 @@ export function PortfolioManager() {
   const [saving, setSaving] = useState(false)
   const [galleryUploading, setGalleryUploading] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
-  const [uploadFormat, setUploadFormat] = useState<UploadFormat>('webp')
   const { toasts, addToast } = useToast()
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const [techTags, setTechTags] = useState<string[]>([])
@@ -314,8 +313,6 @@ export function PortfolioManager() {
           Add Project
         </button>
       </div>
-
-      <UploadFormatPicker value={uploadFormat} onChange={setUploadFormat} />
 
       {showForm && (
         <div ref={formRef} className="mb-6 rounded-2xl border border-border bg-card overflow-hidden">
