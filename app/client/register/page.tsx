@@ -66,19 +66,22 @@ export default function ClientRegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12" style={{ backgroundColor: 'var(--background)' }}>
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
       <ToastStack toasts={toasts} />
+
       <div
         className="pointer-events-none fixed inset-0 opacity-[0.03]"
-        style={{ backgroundImage: 'radial-gradient(circle, #9db8e8 1.5px, transparent 1.5px)', backgroundSize: '32px 32px' }}
+        style={{ backgroundImage: 'radial-gradient(circle, var(--color-brand) 1.5px, transparent 1.5px)', backgroundSize: '32px 32px' }}
       />
+
       <div className="w-full max-w-sm relative z-10">
-        <div className="rounded-3xl border border-border bg-card overflow-hidden" style={{ boxShadow: '0 0 0 1px #9db8e810, 0 24px 64px #00000040' }}>
-          <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, #9db8e8 0%, #6f8fd6 100%)' }} />
+        <div className="rounded-3xl border border-border bg-card overflow-hidden shadow-[0_0_0_1px_var(--color-brand-muted)_,0_24px_64px_-24px_oklch(0_0_0/0.4)]">
+          <div className="h-1 w-full bg-gradient-to-r from-brand to-[color:var(--color-brand-deep)]" />
+
           <div className="px-8 pt-8 pb-10">
             <div className="flex flex-col items-center gap-4 mb-8">
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center" style={{ backgroundColor: '#9db8e818', border: '1.5px solid #9db8e830' }}>
-                <UserCircle size={26} style={{ color: '#9db8e8' }} />
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-brand/10 border border-brand/25">
+                <UserCircle size={26} className="text-brand" />
               </div>
               <div className="text-center">
                 <h1 className="text-xl font-bold text-foreground tracking-tight">Create Your Account</h1>
@@ -103,14 +106,11 @@ export default function ClientRegisterPage() {
                     disabled={disabled}
                     aria-invalid={!!fieldErrors.name}
                     placeholder="Jane Doe"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground/50 focus:outline-none transition-all disabled:opacity-60"
-                    style={fieldErrors.name ? { borderColor: '#e85344' } : undefined}
-                    onFocus={(e) => { e.currentTarget.style.boxShadow = '0 0 0 3px #9db8e830'; e.currentTarget.style.borderColor = '#9db8e8' }}
-                    onBlur={(e) => { e.currentTarget.style.boxShadow = ''; e.currentTarget.style.borderColor = fieldErrors.name ? '#e85344' : '' }}
+                    className={`w-full pl-10 pr-4 py-3 rounded-xl border bg-background text-foreground text-sm placeholder:text-muted-foreground/50 outline-none transition-all disabled:opacity-60 focus:ring-3 focus:ring-brand/30 focus:border-brand ${fieldErrors.name ? 'border-destructive' : 'border-border'}`}
                   />
                 </div>
                 {fieldErrors.name && (
-                  <p className="text-xs mt-1.5 flex items-center gap-1" style={{ color: '#f87171' }}>
+                  <p className="text-xs mt-1.5 flex items-center gap-1 text-destructive">
                     <AlertCircle size={12} />
                     {fieldErrors.name}
                   </p>
@@ -132,14 +132,11 @@ export default function ClientRegisterPage() {
                     disabled={disabled}
                     aria-invalid={!!fieldErrors.email}
                     placeholder="you@example.com"
-                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground/50 focus:outline-none transition-all disabled:opacity-60"
-                    style={fieldErrors.email ? { borderColor: '#e85344' } : undefined}
-                    onFocus={(e) => { e.currentTarget.style.boxShadow = '0 0 0 3px #9db8e830'; e.currentTarget.style.borderColor = '#9db8e8' }}
-                    onBlur={(e) => { e.currentTarget.style.boxShadow = ''; e.currentTarget.style.borderColor = fieldErrors.email ? '#e85344' : '' }}
+                    className={`w-full pl-10 pr-4 py-3 rounded-xl border bg-background text-foreground text-sm placeholder:text-muted-foreground/50 outline-none transition-all disabled:opacity-60 focus:ring-3 focus:ring-brand/30 focus:border-brand ${fieldErrors.email ? 'border-destructive' : 'border-border'}`}
                   />
                 </div>
                 {fieldErrors.email && (
-                  <p className="text-xs mt-1.5 flex items-center gap-1" style={{ color: '#f87171' }}>
+                  <p className="text-xs mt-1.5 flex items-center gap-1 text-destructive">
                     <AlertCircle size={12} />
                     {fieldErrors.email}
                   </p>
@@ -161,10 +158,7 @@ export default function ClientRegisterPage() {
                     disabled={disabled}
                     aria-invalid={!!fieldErrors.password}
                     placeholder="At least 8 characters"
-                    className="w-full pl-10 pr-11 py-3 rounded-xl border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground/50 focus:outline-none transition-all disabled:opacity-60"
-                    style={fieldErrors.password ? { borderColor: '#e85344' } : undefined}
-                    onFocus={(e) => { e.currentTarget.style.boxShadow = '0 0 0 3px #9db8e830'; e.currentTarget.style.borderColor = '#9db8e8' }}
-                    onBlur={(e) => { e.currentTarget.style.boxShadow = ''; e.currentTarget.style.borderColor = fieldErrors.password ? '#e85344' : '' }}
+                    className={`w-full pl-10 pr-11 py-3 rounded-xl border bg-background text-foreground text-sm placeholder:text-muted-foreground/50 outline-none transition-all disabled:opacity-60 focus:ring-3 focus:ring-brand/30 focus:border-brand ${fieldErrors.password ? 'border-destructive' : 'border-border'}`}
                   />
                   <button
                     type="button"
@@ -178,7 +172,7 @@ export default function ClientRegisterPage() {
                   </button>
                 </div>
                 {fieldErrors.password ? (
-                  <p className="text-xs mt-1.5 flex items-center gap-1" style={{ color: '#f87171' }}>
+                  <p className="text-xs mt-1.5 flex items-center gap-1 text-destructive">
                     <AlertCircle size={12} />
                     {fieldErrors.password}
                   </p>
@@ -188,7 +182,7 @@ export default function ClientRegisterPage() {
               </div>
 
               {formError && (
-                <div role="alert" className="flex items-start gap-2.5 rounded-xl px-4 py-3 text-sm" style={{ backgroundColor: '#e8534420', border: '1px solid #e8534430', color: '#f87171' }}>
+                <div role="alert" className="flex items-start gap-2.5 rounded-xl px-4 py-3 text-sm bg-destructive/10 border border-destructive/25 text-destructive">
                   <AlertCircle size={14} className="shrink-0 mt-0.5" />
                   <span>{formError}</span>
                 </div>
@@ -198,10 +192,7 @@ export default function ClientRegisterPage() {
                 type="submit"
                 disabled={disabled}
                 aria-busy={loading}
-                className="mt-1 w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ backgroundColor: '#9db8e8', color: '#1a1a1a' }}
-                onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.backgroundColor = '#6f8fd6' }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#9db8e8' }}
+                className="mt-1 w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm text-primary-foreground bg-primary transition-all hover:bg-[color:var(--color-brand-deep)] disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
               >
                 {loading ? (
                   <>
@@ -233,7 +224,7 @@ export default function ClientRegisterPage() {
 
             <p className="text-center text-sm text-muted-foreground mt-6">
               Already have an account?{' '}
-              <Link href="/client/login" className="font-semibold hover:underline" style={{ color: '#9db8e8' }}>
+              <Link href="/client/login" className="font-semibold text-brand hover:underline">
                 Sign in
               </Link>
             </p>
