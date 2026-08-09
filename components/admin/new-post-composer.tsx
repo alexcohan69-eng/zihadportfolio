@@ -695,7 +695,7 @@ export function NewPostComposer({
                     <ImagePlus size={18} /><span className="text-xs">Choose Existing</span>
                   </div>
                 </div>
-                <input ref={feedFileRef} type="file" multiple accept="image/*,video/mp4,video/webm,audio/*" className="hidden" onChange={(e) => e.target.files && handleFeedUpload(e.target.files)} />
+                <input ref={feedFileRef} type="file" multiple accept="image/*,video/*,audio/*" className="hidden" onChange={(e) => e.target.files && handleFeedUpload(e.target.files)} />
               </div>
             )}
           </div>
@@ -847,7 +847,7 @@ export function NewPostComposer({
               <div onClick={() => setProjectPickerOpen(true)} className="border-2 border-dashed rounded-xl transition-colors cursor-pointer border-border hover:border-[#9db8e8]/50 hover:bg-muted/30">
                 <div className="flex flex-col items-center gap-1.5 py-4 text-muted-foreground"><ImagePlus size={18} /><span className="text-xs">Choose Existing</span></div>
               </div>
-              <input ref={galleryRef} type="file" accept="image/*,video/mp4,video/webm,video/quicktime" multiple className="hidden" onChange={(e) => e.target.files && handleGalleryUpload(e.target.files)} />
+              <input ref={galleryRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={(e) => e.target.files && handleGalleryUpload(e.target.files)} />
             </div>
           </div>
 

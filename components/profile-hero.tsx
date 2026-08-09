@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { MapPin, Calendar, MessageCircle, Mail, Briefcase, Pencil, Trash2 } from 'lucide-react'
 import { MediaPicker } from '@/components/media-picker'
+import { SmartMedia } from '@/components/shared/smart-media'
 
 const TABS = [
   { label: 'All', value: 'all' },
@@ -44,10 +45,6 @@ interface ProfileHeroProps {
   onAvatarChange?: (url: string) => void
   onAvatarDelete?: () => void
   onEditProfile?: () => void
-}
-
-function isVideo(url: string) {
-  return /\.(mp4|webm|mov)$/i.test(url)
 }
 
 // Small floating action button used for media edit overlays
@@ -149,11 +146,11 @@ export function ProfileHero({
       {/* Banner */}
       <div className="h-28 md:h-36 w-full relative overflow-hidden">
         {coverMedia ? (
-          isVideo(coverMedia) ? (
-            <video src={coverMedia} autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover" />
-          ) : (
-            <img src={coverMedia} alt={`${displayName} — cover photo`} className="absolute inset-0 w-full h-full object-cover" />
-          )
+          <SmartMedia
+            src={coverMedia}
+            alt={`${displayName} — cover photo`}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
         ) : (
           <div
             className="absolute inset-0"
@@ -190,11 +187,11 @@ export function ProfileHero({
         <div className="flex items-end justify-between -mt-9 mb-3 relative z-10">
           <div className="relative">
             {profileMedia ? (
-              isVideo(profileMedia) ? (
-                <video src={profileMedia} autoPlay muted loop playsInline className="w-24 h-24 md:w-28 md:h-28 rounded-full border-4 border-background object-cover shadow-md" />
-              ) : (
-                <img src={profileMedia} alt={displayName} className="w-24 h-24 md:w-28 md:h-28 rounded-full border-4 border-background object-cover shadow-md" />
-              )
+              <SmartMedia
+                src={profileMedia}
+                alt={displayName}
+                className="w-24 h-24 md:w-28 md:h-28 rounded-full border-4 border-background object-cover shadow-md"
+              />
             ) : (
               <div
                 className="w-24 h-24 md:w-28 md:h-28 rounded-full border-4 border-background flex items-center justify-center font-bold text-2xl shadow-md uppercase"

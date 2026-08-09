@@ -3,6 +3,7 @@ import { PageShell } from '@/components/page-shell'
 import { MapPin, Calendar, GraduationCap, Camera, Code2, Globe, Zap, Layout, Monitor } from 'lucide-react'
 import { readSettingsData } from '@/lib/data'
 import { JsonLd } from '@/components/json-ld'
+import { SmartMedia } from '@/components/shared/smart-media'
 import {
   breadcrumbSchema,
   buildMetadata,
@@ -58,8 +59,6 @@ export default async function AboutPage() {
   const primaryMedia = aboutMedia[0] ?? ''
   const extraMedia = aboutMedia.slice(1)
   
-  const isVideo = (u: string) => /\.(mp4|webm|mov)$/i.test(u)
-
   const introText = siteSettings?.about?.introText || 'I help startups, agencies, and growing businesses turn their ideas into high-performing websites. My focus is always the same: websites that look great and drive measurable results.'
   const location = siteSettings?.hero?.location || 'Dhaka Cantonment, Bangladesh'
   const joinDate = siteSettings?.hero?.joinDate || 'Joined March 2022'
@@ -99,19 +98,11 @@ export default async function AboutPage() {
           {primaryMedia ? (
             <div className="relative w-full max-w-md mx-auto overflow-hidden rounded-[2rem] border border-border shadow-[0_20px_40px_-15px_rgba(0,0,0,0.2)] bg-muted group" style={{ aspectRatio: '5/7' }}>
               <div className="absolute inset-0 bg-gradient-to-tr from-[#f4a295]/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 z-10 pointer-events-none" />
-              {isVideo(primaryMedia) ? (
-                <video src={primaryMedia} autoPlay muted loop playsInline className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-              ) : (
-                <img
-                  src={primaryMedia}
-                  alt={`${displayName}, ${jobTitle}`}
-                  width={640}
-                  height={896}
-                  fetchPriority="high"
-                  decoding="async"
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                />
-              )}
+              <SmartMedia
+                src={primaryMedia}
+                alt={`${displayName}, ${jobTitle}`}
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+              />
               <div className="absolute inset-0 rounded-[2rem] ring-1 ring-inset ring-white/10 pointer-events-none z-20" />
             </div>
           ) : (
@@ -127,19 +118,11 @@ export default async function AboutPage() {
           <div className="flex gap-3 px-5 pb-2 -mt-14 relative z-30 overflow-x-auto scrollbar-none">
             {extraMedia.map((url, i) => (
               <div key={url + i} className="shrink-0 rounded-2xl overflow-hidden border-[4px] border-background bg-muted shadow-md hover:-translate-y-1 transition-transform duration-300" style={{ width: 72, height: 72 }}>
-                {isVideo(url) ? (
-                  <video src={url} muted autoPlay loop playsInline className="w-full h-full object-cover" aria-label={`${displayName} — work highlight video ${i + 2}`} />
-                ) : (
-                  <img
-                    src={url}
-                    alt={`${displayName} — work highlight ${i + 2}`}
-                    width={72}
-                    height={72}
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full h-full object-cover"
-                  />
-                )}
+                <SmartMedia
+                  src={url}
+                  alt={`${displayName} — work highlight ${i + 2}`}
+                  className="w-full h-full object-cover"
+                />
               </div>
             ))}
           </div>

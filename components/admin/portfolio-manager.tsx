@@ -11,6 +11,7 @@ import { ToastStack, UploadFormatPicker, type UploadFormat } from './shared'
 import { useToast } from '@/hooks/use-toast'
 import { CreatableSelect } from './creatable-select'
 import { TechTagInput } from './tech-tag-input'
+import { SmartMedia } from '@/components/shared/smart-media'
 
 interface ContentBlock {
   id: string
@@ -406,11 +407,7 @@ export function PortfolioManager() {
                 <div className="grid grid-cols-3 gap-2 mb-2">
                   {(form.images ?? []).map((url, i) => (
                     <div key={url + i} className="relative group/img rounded-xl overflow-hidden bg-muted border border-border">
-                      {/\.(mp4|webm|mov)$/i.test(url) ? (
-                        <video src={url} muted className="w-full h-20 object-cover" />
-                      ) : (
-                        <img src={url} alt="" className="w-full h-20 object-cover" />
-                      )}
+                      <SmartMedia src={url} alt="" className="w-full h-20 object-cover" />
                       {i === 0 && <div className="absolute top-1 left-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-black/70 text-white">Cover</div>}
                       <button type="button" onClick={() => removeGalleryImage(i)} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-opacity"><X size={10} /></button>
                     </div>
@@ -427,7 +424,7 @@ export function PortfolioManager() {
                 <div onClick={() => setPickerOpen(true)} className="border-2 border-dashed rounded-xl transition-colors cursor-pointer border-border hover:border-[#f4a295]/50 hover:bg-muted/30">
                   <div className="flex flex-col items-center gap-1.5 py-4 text-muted-foreground"><ImagePlus size={18} /><span className="text-xs">Choose Existing</span></div>
                 </div>
-                <input ref={galleryRef} type="file" accept="image/*,video/mp4,video/webm,video/quicktime" multiple className="hidden" onChange={(e) => e.target.files && handleGalleryUpload(e.target.files)} />
+                <input ref={galleryRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={(e) => e.target.files && handleGalleryUpload(e.target.files)} />
               </div>
             </div>
 
@@ -445,7 +442,7 @@ export function PortfolioManager() {
                           <div className="space-y-1.5">
                             <input type="url" value={block.url ?? ''} onChange={(e) => updateBlock(block.id, { url: e.target.value })} placeholder="Image URL (from gallery above)..." className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
                             <input type="text" value={block.caption ?? ''} onChange={(e) => updateBlock(block.id, { caption: e.target.value })} placeholder="Caption (optional)..." className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground text-xs focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
-                            {block.url && <div className="rounded-xl overflow-hidden bg-muted border border-border"><img src={block.url} alt={block.caption ?? ''} className="w-full max-h-32 object-cover" /></div>}
+                            {block.url && <div className="rounded-xl overflow-hidden bg-muted border border-border"><SmartMedia src={block.url} alt={block.caption ?? ''} className="w-full max-h-32 object-cover" /></div>}
                           </div>
                         )}
                         {block.type === 'divider' && <div className="flex items-center gap-2 py-2 text-muted-foreground"><div className="flex-1 h-px bg-border" /><span className="text-[10px] uppercase tracking-widest">divider</span><div className="flex-1 h-px bg-border" /></div>}
@@ -489,7 +486,7 @@ export function PortfolioManager() {
             const coverImage = project.images?.[0] ?? project.image
             return (
               <div key={project.id} className={cn('group flex items-center gap-3 px-4 py-3 rounded-xl border transition-all', isDeleting ? 'border-destructive/40 bg-destructive/5' : 'border-border bg-card hover:border-border/80 hover:bg-muted/30')}>
-                {coverImage ? <img src={coverImage} alt={project.title} className="w-10 h-10 rounded-lg object-cover shrink-0 border border-border" /> : <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border border-border" style={{ backgroundColor: '#f4a29515' }}><TrendingUp size={16} style={{ color: '#f4a295' }} /></div>}
+                {coverImage ? <SmartMedia src={coverImage} alt={project.title} className="w-10 h-10 rounded-lg object-cover shrink-0 border border-border" /> : <div className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0 border border-border" style={{ backgroundColor: '#f4a29515' }}><TrendingUp size={16} style={{ color: '#f4a295' }} /></div>}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2"><p className="text-sm font-semibold text-foreground truncate">{project.title}</p>{project.featured && <Star size={11} fill="#f4a295" style={{ color: '#f4a295' }} className="shrink-0" />}</div>
                   <p className="text-xs text-muted-foreground capitalize">{project.category}{project.tech?.length > 0 && ` · ${project.tech.slice(0, 2).join(', ')}`}{(project.images?.length ?? 0) > 0 && ` · ${project.images!.length} image${project.images!.length !== 1 ? 's' : ''}`}</p>

@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { PostInteractions } from '@/components/post-interactions'
 import { deleteFeedItem, updateFeedItem } from '@/lib/data-actions'
 import { useAdminStatus } from '@/hooks/use-admin-status'
+import { SmartMedia } from '@/components/shared/smart-media'
 
 type FeedType = 'testimonial' | 'project' | 'portfolio' | 'post' | 'general'
 
@@ -52,9 +53,9 @@ function MediaGrid({ urls, onClick, altBase }: { urls: string[]; onClick?: (e: R
 
   const renderItem = (url: string, index: number, className?: string) => {
     const kind = getMediaType(url)
-    if (kind === 'video') return <div key={index} className={cn('relative overflow-hidden bg-black rounded-xl', className)}><video src={url} controls className="w-full h-full object-contain" aria-label={`${altBase ?? 'Post'} video ${index + 1}`} onClick={(e) => e.stopPropagation()}/></div>
+    if (kind === 'video') return <div key={index} className={cn('relative overflow-hidden bg-black rounded-xl', className)} onClick={(e) => e.stopPropagation()}><SmartMedia src={url} alt={`${altBase ?? 'Post'} video ${index + 1}`} className="w-full h-full object-contain" /></div>
     if (kind === 'audio') return <div key={index} className={cn('flex flex-col items-center justify-center gap-2.5 rounded-xl bg-muted border border-border p-4', className)} onClick={(e) => e.stopPropagation()}><div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#f4a29520' }}><Music size={18} style={{ color: '#f4a295' }} /></div><audio src={url} controls className="w-full max-w-full h-8" aria-label={`${altBase ?? 'Post'} audio ${index + 1}`} style={{ accentColor: '#f4a295' }}/></div>
-    return <div key={index} className={cn('overflow-hidden bg-muted rounded-xl', className)}><img src={url} alt={`${altBase ?? 'Post'} image ${index + 1}`} className="w-full h-full object-cover hover:scale-[1.02] transition-transform duration-300" loading="lazy"/></div>
+    return <div key={index} className={cn('overflow-hidden bg-muted rounded-xl', className)}><SmartMedia src={url} alt={`${altBase ?? 'Post'} image ${index + 1}`} className="w-full h-full object-cover hover:scale-[1.02] transition-transform duration-300" /></div>
   }
 
   if (count === 1) return <div className={cn('w-full rounded-xl overflow-hidden', getMediaType(urls[0]) !== 'audio' && 'bg-muted')} style={getMediaType(urls[0]) === 'audio' ? {} : { aspectRatio: '16/9' }} onClick={onClick}>{renderItem(urls[0], 0, 'w-full h-full')}</div>

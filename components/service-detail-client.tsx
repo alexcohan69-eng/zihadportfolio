@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { ArrowLeft, Check, Clock, Loader2, X, Film, Music, Send, CheckCircle2, Quote, Star, LogIn, Lock } from 'lucide-react'
 import { PageShell } from '@/components/page-shell'
 import { cn } from '@/lib/utils'
 import { useClientSession } from '@/hooks/use-client-session'
+import { SmartMedia } from '@/components/shared/smart-media'
 import type { Service } from '@/lib/types'
 
 function mediaKind(url: string): 'image' | 'video' | 'audio' {
@@ -25,17 +25,18 @@ function MediaGallery({ media, title }: { media: string[]; title: string }) {
     <div>
       <div className="relative w-full aspect-video bg-muted rounded-2xl overflow-hidden border border-border">
         {kind === 'image' && (
-          <Image
+          <SmartMedia
             src={current}
             alt={`${title} preview ${active + 1}`}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, 700px"
-            priority
+            className="absolute inset-0 w-full h-full object-cover"
           />
         )}
         {kind === 'video' && (
-          <video src={current} controls className="w-full h-full object-contain bg-black" aria-label={`${title} video ${active + 1}`} />
+          <SmartMedia
+            src={current}
+            alt={`${title} video ${active + 1}`}
+            className="w-full h-full object-contain bg-black"
+          />
         )}
         {kind === 'audio' && (
           <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-muted-foreground">
@@ -60,7 +61,7 @@ function MediaGallery({ media, title }: { media: string[]; title: string }) {
                 )}
               >
                 {k === 'image' ? (
-                  <Image src={url} alt="" fill className="object-cover" sizes="64px" />
+                  <SmartMedia src={url} alt="" className="absolute inset-0 w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full bg-muted flex items-center justify-center text-muted-foreground">
                     {k === 'video' ? <Film size={16} /> : <Music size={16} />}
@@ -305,7 +306,7 @@ function ReviewsSection({ testimonials }: { testimonials: Service['testimonials'
             </blockquote>
             <figcaption className="flex items-center gap-3 mt-1">
               {review.clientImage ? (
-                <img
+                <SmartMedia
                   src={review.clientImage}
                   alt={review.clientName || 'Client'}
                   className="w-9 h-9 rounded-full object-cover border border-border"
