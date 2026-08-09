@@ -19,7 +19,7 @@ import {
   X, Check, Upload, Loader2, Star,
   BookOpen, Quote, Briefcase, ChevronDown,
   Music, Film, ImagePlus, ExternalLink, Code,
-  AlignLeft, Image, GripVertical, Plus,
+  AlignLeft, Image, GripVertical, Plus, CloudUpload, PartyPopper,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MediaPickerModal } from '@/components/admin/media-picker-modal'
@@ -73,6 +73,35 @@ interface ProjectPayload {
 }
 
 export type PostKind = 'post' | 'testimonial' | 'project'
+
+/** Twitter-style multi-phase publish flow: media upload → server publish → success. */
+export type SubmitPhase = 'idle' | 'uploading' | 'publishing' | 'success'
+
+const SUBMIT_PHASE_COPY: Record<Exclude<SubmitPhase, 'idle'>, { label: string; icon: React.ElementType }> = {
+  uploading: { label: 'Uploading media…', icon: CloudUpload },
+  publishing: { label: 'Publishing…', icon: Loader2 },
+  success: { label: 'Published!', icon: PartyPopper },
+}
+
+/** Floating bottom status pill shown while a post/project is being submitted. */
+function SubmitStatusOverlay({ phase }: { phase: SubmitPhase }) {
+  if (phase === 'idle') return null
+  const { label, icon: Icon } = SUBMIT_PHASE_COPY[phase]
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center z-20 animate-in fade-in slide-in-from-bottom-2 duration-200">
+      <div className="flex items-center gap-2.5 rounded-full bg-foreground text-background px-4 py-2.5 shadow-2xl">
+        <Icon
+          size={15}
+          className={cn(
+            phase === 'publishing' && 'animate-spin',
+            phase === 'uploading' && 'animate-pulse',
+          )}
+        />
+        <span className="text-xs font-semibold tracking-wide">{label}</span>
+      </div>
+    </div>
+  )
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -265,9 +294,22 @@ export function NewPostComposer({
 
   // ── Shared ──
   const [saving, setSaving] = useState(false)
+  const [submitPhase, setSubmitPhase] = useState<SubmitPhase>('idle')
+  const pendingPublishRef = useRef<(() => void) | null>(null)
 
   const feedFileRef = useRef<HTMLInputElement>(null)
   const galleryRef = useRef<HTMLInputElement>(null)
+
+  // Once any in-flight media upload finishes, resume a publish that was
+  // waiting on it — keeps "Uploading media…" → "Publishing…" seamless
+  // instead of forcing the user to click Publish a second time.
+  useEffect(() => {
+    if (submitPhase === 'uploading' && !feedUploading && !galleryUploading && pendingPublishRef.current) {
+      const run = pendingPublishRef.current
+      pendingPublishRef.current = null
+      run()
+    }
+  }, [feedUploading, galleryUploading, submitPhase])
 
   // Fetch suggestions on mount
   useEffect(() => {
@@ -287,6 +329,9 @@ export function NewPostComposer({
     if (open) {
       const kind = defaultKind ?? 'post'
       setActiveKind(kind)
+      setSaving(false)
+      setSubmitPhase('idle')
+      pendingPublishRef.current = null
       if (kind === 'project') {
         setProjectFormState({ ...PROJECT_EMPTY })
         setTechTags([])
@@ -432,9 +477,8 @@ export function NewPostComposer({
 
   // ── Submit: Feed ──
 
-  async function handleFeedSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
+  async function publishFeed() {
+    setSubmitPhase('publishing')
     const payload = {
       ...feedForm,
       category: FEED_CATEGORY_MAP[feedForm.type] ?? 'posts',
@@ -446,19 +490,44 @@ export function NewPostComposer({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      if (res.ok) {
-        onSuccess?.()
-        onClose()
+      if (!res.ok) {
+        setSubmitPhase('idle')
+        setSaving(false)
+        window.alert('Something went wrong publishing your post. Please try again.')
+        return
       }
-    } catch {}
-    finally { setSaving(false) }
+      // Brief success beat before the modal dismisses — mirrors the
+      // "sent!" confirmation pattern from Twitter/Facebook composers.
+      setSubmitPhase('success')
+      await new Promise((resolve) => setTimeout(resolve, 700))
+      onSuccess?.()
+      onClose()
+      setSaving(false)
+      setSubmitPhase('idle')
+    } catch {
+      setSubmitPhase('idle')
+      setSaving(false)
+      window.alert('Network error — your post was not published.')
+    }
+  }
+
+  function handleFeedSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    if (feedUploading) {
+      // Media is still streaming to Cloudinary — surface the upload phase
+      // and auto-resume the publish the instant the upload settles.
+      setSubmitPhase('uploading')
+      pendingPublishRef.current = publishFeed
+      return
+    }
+    void publishFeed()
   }
 
   // ── Submit: Project ──
 
-  async function handleProjectSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
+  async function publishProject() {
+    setSubmitPhase('publishing')
     const results = resultKey.trim() ? { [resultKey.trim()]: resultVal.trim() } : {}
     const coverImage = projectForm.images?.[0] ?? projectForm.image ?? ''
     const payload = { ...projectForm, tech: techTags, results, image: coverImage }
@@ -469,43 +538,68 @@ export function NewPostComposer({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      if (res.ok) {
-        const saved = await res.json()
-        // Auto-sync to feed
-        const projectData = saved.project ?? payload
-        const feedPost = {
-          type: 'project',
-          category: 'projects',
-          title: projectData.title,
-          excerpt: projectData.description,
-          content: projectData.description,
-          author: 'Zihad Imtiase',
-          image: coverImage,
-          media: projectForm.images ?? [],
-          tech: techTags,
-          link: projectData.link ?? '',
-          featured: projectData.featured ?? false,
-          linkedProjectId: projectData.id ?? saved.project?.id ?? '',
-        }
-        try {
-          await fetch('/api/feed', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(feedPost),
-          })
-        } catch {}
-
-        // Refresh tech suggestions with newly added tags
-        setTechSuggestions((prev) => {
-          const next = [...new Set([...prev, ...techTags])].sort()
-          return next
-        })
-
-        onSuccess?.()
-        onClose()
+      if (!res.ok) {
+        setSubmitPhase('idle')
+        setSaving(false)
+        window.alert('Something went wrong adding your project. Please try again.')
+        return
       }
-    } catch {}
-    finally { setSaving(false) }
+      const saved = await res.json()
+      // Auto-sync to feed
+      const projectData = saved.project ?? payload
+      const feedPost = {
+        type: 'project',
+        category: 'projects',
+        title: projectData.title,
+        excerpt: projectData.description,
+        content: projectData.description,
+        author: 'Zihad Imtiase',
+        image: coverImage,
+        media: projectForm.images ?? [],
+        tech: techTags,
+        link: projectData.link ?? '',
+        featured: projectData.featured ?? false,
+        linkedProjectId: projectData.id ?? saved.project?.id ?? '',
+      }
+      try {
+        await fetch('/api/feed', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(feedPost),
+        })
+      } catch {}
+
+      // Refresh tech suggestions with newly added tags
+      setTechSuggestions((prev) => {
+        const next = [...new Set([...prev, ...techTags])].sort()
+        return next
+      })
+
+      // Brief success beat before the modal dismisses.
+      setSubmitPhase('success')
+      await new Promise((resolve) => setTimeout(resolve, 700))
+      onSuccess?.()
+      onClose()
+      setSaving(false)
+      setSubmitPhase('idle')
+    } catch {
+      setSubmitPhase('idle')
+      setSaving(false)
+      window.alert('Network error — your project was not saved.')
+    }
+  }
+
+  function handleProjectSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    if (galleryUploading) {
+      // Gallery media is still streaming to Cloudinary — surface the
+      // upload phase and auto-resume the publish once it settles.
+      setSubmitPhase('uploading')
+      pendingPublishRef.current = publishProject
+      return
+    }
+    void publishProject()
   }
 
   // ─── Guard ───────────────────────────────────────────────────────────────────
@@ -521,7 +615,7 @@ export function NewPostComposer({
   const innerContent = (
     <div
       className={cn(
-        'bg-card border border-border rounded-2xl shadow-xl overflow-hidden flex flex-col',
+        'relative bg-card border border-border rounded-2xl shadow-xl overflow-hidden flex flex-col',
         asModal ? 'w-full max-w-xl' : 'w-full',
       )}
     >
@@ -549,10 +643,11 @@ export function NewPostComposer({
               <button
                 key={value}
                 type="button"
-                onClick={() => switchKind(value)}
+                onClick={() => !saving && switchKind(value)}
+                disabled={saving}
                 title={KIND_OPTIONS.find((k) => k.value === value)?.label}
                 className={cn(
-                  'w-7 h-7 rounded-lg flex items-center justify-center transition-all',
+                  'w-7 h-7 rounded-lg flex items-center justify-center transition-all disabled:opacity-50 disabled:cursor-not-allowed',
                   activeKind === value
                     ? 'bg-background shadow-sm'
                     : 'text-muted-foreground hover:text-foreground hover:bg-background/50',
@@ -566,7 +661,8 @@ export function NewPostComposer({
           <button
             type="button"
             onClick={onClose}
-            className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            disabled={saving}
+            className="w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <X size={15} />
           </button>
@@ -575,7 +671,8 @@ export function NewPostComposer({
 
       {/* ── POST / TESTIMONIAL FORM ── */}
       {(activeKind === 'post' || activeKind === 'testimonial') && (
-        <form onSubmit={handleFeedSubmit} className="p-5 space-y-4 overflow-y-auto max-h-[70vh]">
+        <form onSubmit={handleFeedSubmit} className="p-5 pb-16 space-y-4 overflow-y-auto max-h-[70vh]">
+        <fieldset disabled={saving} className="space-y-4 disabled:opacity-60 transition-opacity">
           <div>
             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
               Title <span className="text-destructive">*</span>
@@ -719,18 +816,20 @@ export function NewPostComposer({
               style={{ backgroundColor: activeMeta.color, color: '#1a1a1a' }}
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-              Publish
+              {submitPhase === 'uploading' ? 'Uploading…' : submitPhase === 'publishing' ? 'Publishing…' : submitPhase === 'success' ? 'Published!' : 'Publish'}
             </button>
             <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl text-sm font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
               Cancel
             </button>
           </div>
+        </fieldset>
         </form>
       )}
 
       {/* ── PROJECT FORM ── */}
       {activeKind === 'project' && (
-        <form onSubmit={handleProjectSubmit} className="p-5 space-y-4 overflow-y-auto max-h-[70vh]">
+        <form onSubmit={handleProjectSubmit} className="p-5 pb-16 space-y-4 overflow-y-auto max-h-[70vh]">
+        <fieldset disabled={saving} className="space-y-4 disabled:opacity-60 transition-opacity">
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Category</label>
@@ -916,17 +1015,20 @@ export function NewPostComposer({
               style={{ backgroundColor: '#9db8e8', color: '#1a1a1a' }}
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-              Add Project
+              {submitPhase === 'uploading' ? 'Uploading…' : submitPhase === 'publishing' ? 'Publishing…' : submitPhase === 'success' ? 'Published!' : 'Add Project'}
             </button>
             <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-xl text-sm font-medium border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
               Cancel
             </button>
           </div>
+        </fieldset>
         </form>
       )}
 
       <MediaPickerModal isOpen={feedPickerOpen} onClose={() => setFeedPickerOpen(false)} multiple={true} onSelect={handleFeedSelectExisting} />
       <MediaPickerModal isOpen={projectPickerOpen} onClose={() => setProjectPickerOpen(false)} multiple={true} onSelect={handleProjectSelectExisting} />
+
+      <SubmitStatusOverlay phase={submitPhase} />
     </div>
   )
 
