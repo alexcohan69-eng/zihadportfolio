@@ -194,7 +194,7 @@ export function ProfileHero({
               <SmartMedia
                 src={profileMedia}
                 alt={displayName}
-                className="w-24 h-24 md:w-28 md:h-28 rounded-full border-4 border-background object-cover shadow-md"
+                className="w-28 h-28 md:w-36 md:h-36 rounded-full border-4 border-background object-cover shadow-md"
                 autoPlay={true}
                 muted={true}
                 loop={true}
@@ -202,7 +202,7 @@ export function ProfileHero({
               />
             ) : (
               <div
-                className="w-24 h-24 md:w-28 md:h-28 rounded-full border-4 border-background flex items-center justify-center font-bold text-2xl shadow-md uppercase"
+                className="w-28 h-28 md:w-36 md:h-36 rounded-full border-4 border-background flex items-center justify-center font-bold text-2xl shadow-md uppercase"
                 style={{ backgroundColor: '#f4a295', color: '#1a1a1a' }}
               >
                 {name.slice(0, 2)}
