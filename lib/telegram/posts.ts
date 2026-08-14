@@ -20,6 +20,7 @@ import { extractIncomingFile, downloadAndUploadTelegramFile } from './media'
 import { getFeedData, addFeedItem, updateFeedItem, deleteFeedItem } from '@/lib/data-actions'
 import { readSettingsData } from '@/lib/data'
 import type { FeedItem } from '@/lib/types'
+import { GENERIC_ERROR_MESSAGE, logError } from './logger'
 
 const BASE_URL = (process.env.NEXT_PUBLIC_BASE_URL ?? 'https://zihadimtiase.com').replace(/\/$/, '')
 const PAGE_SIZE = 10
@@ -51,6 +52,17 @@ declare global {
 function getFlows(): Map<number, FlowState> {
   if (!globalThis._telegramPostFlows) globalThis._telegramPostFlows = new Map()
   return globalThis._telegramPostFlows
+}
+
+/**
+ * Clears any in-progress /newpost or /editpost flow for `chatId`.
+ * Used by the shared `/cancel` command registered in `bot.ts`, since a
+ * chat may be mid-flow in this module, `settings.ts`, or `services.ts` —
+ * `/cancel` needs to check all of them, not just whichever module happened
+ * to register its own `/cancel` handler first.
+ */
+export function clearPostFlow(chatId: number): boolean {
+  return getFlows().delete(chatId)
 }
 
 // ── Formatting helpers ───────────────────────────────────────────────────────
@@ -200,13 +212,6 @@ export function registerPostHandlers(bot: Bot): void {
       await startDeleteFlow(ctx, postId)
     }),
   )
-
-  // ── /cancel ──
-  bot.command('cancel', async (ctx) => {
-    if (!ctx.chat) return
-    const had = flows.delete(ctx.chat.id)
-    await ctx.reply(had ? 'Cancelled.' : 'Nothing to cancel.')
-  })
 
   // ── Pagination ──
   bot.callbackQuery(/^posts:page:(\d+)$/, requireAuth(async (ctx) => {
@@ -361,7 +366,7 @@ export function registerPostHandlers(bot: Bot): void {
         `Post created!\n\nTitle: ${result.item.title}\nID: ${result.item.id}\nView: ${postLink(result.item.id)}${draftNote}`,
       )
     } catch (err) {
-      console.error('[telegram-bot] Failed to create post:', err)
+      logError('newpost:confirm', ctx.chat.id, err)
       await ctx.editMessageText("Something went wrong creating the post. Please try again with /newpost.")
     }
   }))
@@ -390,7 +395,11 @@ export function registerPostHandlers(bot: Bot): void {
           return
         }
         flows.set(ctx.chat.id, { ...state, step: 'ask_media', content: text })
-        const keyboard = new InlineKeyboard().text('Yes', 'np:media:yes').text('No', 'np:media:no')
+        const keyboard = new InlineKeyboard()
+          .text('Yes', 'np:media:yes')
+          .text('No', 'np:media:no')
+          .row()
+          .text('❌ Cancel', 'np:cancel')
         await ctx.reply('Would you like to attach an image or video?', { reply_markup: keyboard })
         return
       }
@@ -408,12 +417,17 @@ export function registerPostHandlers(bot: Bot): void {
       }
       const field = state.step === 'awaiting_title' ? 'title' : 'content'
       flows.delete(ctx.chat.id)
-      const result = await updateFeedItem(state.postId, { [field]: text })
-      if (!result.success || !result.item) {
-        await ctx.reply(`Couldn't update post ${state.postId}: ${result.error ?? 'unknown error'}.`)
-        return
+      try {
+        const result = await updateFeedItem(state.postId, { [field]: text })
+        if (!result.success || !result.item) {
+          await ctx.reply(`Couldn't update post ${state.postId}: ${result.error ?? 'unknown error'}.`)
+          return
+        }
+        await ctx.reply(`Updated!\n\n${summaryFor(result.item)}`)
+      } catch (err) {
+        logError(`editpost:${field}`, ctx.chat.id, err)
+        await ctx.reply(GENERIC_ERROR_MESSAGE)
       }
-      await ctx.reply(`Updated!\n\n${summaryFor(result.item)}`)
       return
     }
 
@@ -445,8 +459,8 @@ export function registerPostHandlers(bot: Bot): void {
         flows.set(ctx.chat.id, next)
         await ctx.reply('Media attached. Publish now or save as draft?', { reply_markup: publishKeyboard() })
       } catch (err) {
-        console.error('[telegram-bot] Media upload failed:', err)
-        await ctx.reply("Couldn't upload that file. Please try again or /cancel.")
+        logError('newpost:media-upload', ctx.chat.id, err)
+        await ctx.reply(`${mediaErrorMessage(err)} Please try again or /cancel.`)
       }
       return
     }
@@ -463,8 +477,8 @@ export function registerPostHandlers(bot: Bot): void {
         }
         await ctx.reply(`Updated!\n\n${summaryFor(result.item)}`)
       } catch (err) {
-        console.error('[telegram-bot] Media upload failed:', err)
-        await ctx.reply("Couldn't upload that file. Please try again or /cancel.")
+        logError('editpost:media-upload', ctx.chat.id, err)
+        await ctx.reply(`${mediaErrorMessage(err)} Please try again or /cancel.`)
       }
       return
     }
@@ -473,8 +487,30 @@ export function registerPostHandlers(bot: Bot): void {
   })
 }
 
+/**
+ * Media-related failures from `downloadAndUploadTelegramFile` (file too
+ * large, Telegram couldn't be reached, unsupported type) already carry a
+ * safe, user-facing message — surface it instead of the generic fallback
+ * so the admin knows *why* an upload failed. Anything else falls back to
+ * the generic message so no internal detail (Cloudinary errors, network
+ * stack traces) reaches the chat.
+ */
+function mediaErrorMessage(err: unknown): string {
+  const knownMessages = [
+    'File is too large (Telegram bots can only download files up to 20MB).',
+    'Could not retrieve file from Telegram.',
+    'Failed to download file from Telegram.',
+  ]
+  if (err instanceof Error && knownMessages.includes(err.message)) return err.message
+  return "Couldn't upload that file."
+}
+
 function publishKeyboard(): InlineKeyboard {
-  return new InlineKeyboard().text('Publish now', 'np:pub:published').text('Save as draft', 'np:pub:draft')
+  return new InlineKeyboard()
+    .text('Publish now', 'np:pub:published')
+    .text('Save as draft', 'np:pub:draft')
+    .row()
+    .text('❌ Cancel', 'np:cancel')
 }
 
 function confirmKeyboard(): InlineKeyboard {

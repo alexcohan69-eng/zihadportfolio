@@ -8,6 +8,7 @@
  * non-expired document for a chat id IS the session.
  */
 import { getDb } from '@/lib/db'
+import { logError } from './logger'
 
 const COLLECTION = 'telegram_sessions'
 const SESSION_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
@@ -64,7 +65,7 @@ export async function isTelegramAuthenticated(chatId: number): Promise<boolean> 
     if (!doc) return false
     return doc.expiresAt.getTime() > Date.now()
   } catch (err) {
-    console.error('[telegram-bot] Failed to look up session:', err)
+    logError('session:lookup', chatId, err)
     return false
   }
 }

@@ -21,6 +21,7 @@ A full-stack personal portfolio built with **Next.js 16 App Router**, **MongoDB*
 13. [Adding a New Editable Field](#13-adding-a-new-editable-field)
 14. [Common Errors & Fixes](#14-common-errors--fixes)
 15. [Deployment Checklist](#15-deployment-checklist)
+16. [Telegram Admin Bot](#16-telegram-admin-bot)
 
 ---
 
@@ -468,6 +469,14 @@ Before going live on Vercel, verify:
 - [ ] Cloudinary upload preset is set to **unsigned** or you are using API-key signed uploads (current setup uses signed uploads via the API secret)
 - [ ] Site Settings are filled in via `/admin/site-settings` so the public site has real content
 - [ ] At least one Feed post and one Portfolio project are created
+
+---
+
+## 16. Telegram Admin Bot
+
+The site can also be managed remotely from Telegram, using the same admin username/password as the admin panel — create/edit/delete posts and services, update site settings, and view stats/orders, all from a chat.
+
+Full setup (getting a bot token, environment variables, running locally vs. in production, every command, security notes, and a manual test checklist) is documented separately in **[`docs/telegram-bot.md`](./docs/telegram-bot.md)**.
 
 ---
 
