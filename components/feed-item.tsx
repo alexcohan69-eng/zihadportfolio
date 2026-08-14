@@ -394,7 +394,10 @@ export function FeedItem({
   )
 
   return (
-    <article className={cn('px-4 py-5 border-b border-border transition-colors relative', pinned && 'bg-[#f4a295]/5')}>
+    <article
+      data-post-id={id}
+      className={cn('px-4 py-5 border-b border-border transition-colors relative', pinned && 'bg-[#f4a295]/5')}
+    >
       {pinned && (
         <div className="flex items-center gap-1.5 mb-2 ml-[52px]">
           <Pin size={11} className="text-[#f4a295]" />
