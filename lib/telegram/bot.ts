@@ -1,9 +1,10 @@
 /**
  * The bot instance and its command handlers.
  *
- * Only skeleton commands live here for now (`/start`, `/help`). Auth and
- * admin-management commands are intentionally left out — they'll be added
- * once the admin-linking flow is designed.
+ * `/start` and `/help` are plain skeleton replies. `/login` and `/logout`
+ * (registered via `registerAuthHandlers`) authenticate a chat against the
+ * same admin credentials the web admin panel uses. Admin-management
+ * commands themselves are intentionally not implemented yet.
  *
  * The instance is cached on `globalThis`, same pattern as `lib/db.ts`'s
  * Mongo client — this keeps a single `Bot` across Next.js dev hot-reloads
@@ -11,6 +12,7 @@
  */
 import { Bot } from 'grammy'
 import { getTelegramConfig } from './config'
+import { registerAuthHandlers } from './login'
 
 declare global {
   // eslint-disable-next-line no-var
@@ -28,6 +30,8 @@ function createBot(): Bot {
   bot.command('help', async (ctx) => {
     await ctx.reply('Welcome! This is the admin bot for the site.\n\nPlease use /login to authenticate.')
   })
+
+  registerAuthHandlers(bot)
 
   bot.catch((err) => {
     console.error('[telegram-bot] Unhandled error while processing an update:', err.error)
