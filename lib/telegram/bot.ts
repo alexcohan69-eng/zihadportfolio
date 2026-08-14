@@ -28,7 +28,7 @@ import { registerPostHandlers, clearPostFlow } from './posts'
 import { registerSettingsHandlers, clearSettingsFlow } from './settings'
 import { registerServiceHandlers, clearServiceFlow } from './services'
 import { registerStatsHandlers } from './stats'
-import { GENERIC_ERROR_MESSAGE, logError } from './logger'
+import { GENERIC_ERROR_MESSAGE, logCritical, logError } from './logger'
 
 const HELP_TEXT = [
   'Available commands:',
@@ -102,11 +102,16 @@ function createBot(): Bot {
     const action = err.ctx.callbackQuery?.data ?? err.ctx.message?.text ?? 'unknown'
 
     if (err.error instanceof GrammyError) {
+      // Telegram API errors (rate limits, bad requests) are operational,
+      // expected occasionally, and would spam the alert inbox if they
+      // triggered an email — log only.
       logError(`${action}:telegram-api-error(${err.error.error_code})`, chatId, err.error)
     } else if (err.error instanceof HttpError) {
       logError(`${action}:network-timeout`, chatId, err.error)
     } else {
-      logError(action, chatId, err.error)
+      // A genuine programming error that escaped every other handler —
+      // this is the case worth a (rate-limited) email alert.
+      logCritical(action, chatId, err.error)
     }
 
     err.ctx.reply(GENERIC_ERROR_MESSAGE).catch(() => {
