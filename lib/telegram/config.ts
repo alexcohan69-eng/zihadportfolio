@@ -15,7 +15,7 @@ const telegramConfigSchema = z.object({
    * updates to `TELEGRAM_WEBHOOK_URL`).
    */
   TELEGRAM_BOT_MODE: z.enum(['polling', 'webhook']).default('polling'),
-  /** Public HTTPS URL Telegram should POST updates to. Required in webhook mode. */
+  /** Public HTTPS URL Telegram should POST updates to. */
   TELEGRAM_WEBHOOK_URL: z.string().trim().url().optional(),
   /**
    * Optional shared secret Telegram echoes back in the
@@ -32,15 +32,20 @@ let cachedConfig: TelegramConfig | undefined
 /**
  * Parses and validates the Telegram env vars on first use, then caches the
  * result. Throws a descriptive error if `TELEGRAM_BOT_TOKEN` is missing/blank
- * or if webhook mode is selected without `TELEGRAM_WEBHOOK_URL`.
+ * or if webhook mode has no configured URL and no `NEXT_PUBLIC_BASE_URL` to derive one from.
  */
 export function getTelegramConfig(): TelegramConfig {
   if (cachedConfig) return cachedConfig
 
+  const botMode = process.env.TELEGRAM_BOT_MODE || undefined
+  const configuredWebhookUrl = process.env.TELEGRAM_WEBHOOK_URL?.trim()
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL?.trim().replace(/\/$/, '')
+  const derivedWebhookUrl = baseUrl ? `${baseUrl}/api/telegram/webhook` : undefined
+
   const parsed = telegramConfigSchema.safeParse({
     TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN,
-    TELEGRAM_BOT_MODE: process.env.TELEGRAM_BOT_MODE || undefined,
-    TELEGRAM_WEBHOOK_URL: process.env.TELEGRAM_WEBHOOK_URL || undefined,
+    TELEGRAM_BOT_MODE: botMode,
+    TELEGRAM_WEBHOOK_URL: configuredWebhookUrl || derivedWebhookUrl,
     TELEGRAM_WEBHOOK_SECRET: process.env.TELEGRAM_WEBHOOK_SECRET || undefined,
   })
 

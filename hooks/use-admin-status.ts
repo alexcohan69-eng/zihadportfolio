@@ -23,7 +23,6 @@ export function useAdminStatus(): boolean {
       .then((d) => setIsAdmin(d.authenticated === true))
       .catch(() => setIsAdmin(readAdminHint()))
     // Run once per mount; the hint cookie handles navigation changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return isAdmin
