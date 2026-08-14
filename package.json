@@ -11,8 +11,6 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
-    "@grammyjs/conversations": "^2.1.1",
-    "@grammyjs/storage-mongodb": "^2.6.0",
     "@vercel/analytics": "1.6.1",
     "@vercel/speed-insights": "^2.0.0",
     "class-variance-authority": "^0.7.1",
