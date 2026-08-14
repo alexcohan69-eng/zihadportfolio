@@ -44,6 +44,26 @@ export function safeEqual(a: string, b: string): boolean {
 }
 
 /**
+ * Verifies a username/password pair against the admin credentials
+ * configured via `ADMIN_USERNAME`/`ADMIN_PASSWORD`.
+ *
+ * This is the single source of truth for admin credential verification —
+ * every login surface (the `/api/auth/login` route, the Telegram bot's
+ * `/login` command, etc.) must call this instead of re-implementing the
+ * comparison, so there is exactly one place that decides what counts as
+ * valid admin credentials.
+ */
+export function verifyAdminCredentials(username: string, password: string): boolean {
+  const envUsername = process.env.ADMIN_USERNAME ?? ''
+  const envPassword = process.env.ADMIN_PASSWORD ?? ''
+  if (!envUsername || !envPassword) return false
+
+  const usernameMatch = safeEqual(username.trim(), envUsername.trim())
+  const passwordMatch = safeEqual(password, envPassword)
+  return usernameMatch && passwordMatch
+}
+
+/**
  * Returns true if the request carries a valid admin session cookie.
  */
 export async function isAuthenticated(request: NextRequest): Promise<boolean> {

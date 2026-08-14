@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
-import { makeSessionToken, safeEqual, SESSION_COOKIE } from '@/lib/auth'
+import { makeSessionToken, verifyAdminCredentials, SESSION_COOKIE } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,10 +21,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const usernameMatch = safeEqual(username.trim(), envUsername.trim())
-    const passwordMatch = safeEqual(password, envPassword)
-
-    if (!usernameMatch || !passwordMatch) {
+    if (!verifyAdminCredentials(username, password)) {
       // Artificial delay to further deter brute force
       await new Promise((r) => setTimeout(r, 500))
       return NextResponse.json({ error: 'Invalid username or password' }, { status: 401 })
