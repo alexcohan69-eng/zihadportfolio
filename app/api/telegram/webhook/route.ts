@@ -24,5 +24,13 @@ export async function POST(request: Request): Promise<Response> {
     secretToken: config.TELEGRAM_WEBHOOK_SECRET,
   })
 
-  return handleUpdate(request)
+  try {
+    // Telegram expects a fast 2xx acknowledgement. grammy processes the
+    // update and returns a non-2xx response when a handler escapes, which
+    // makes Telegram retry the same update indefinitely.
+    return await handleUpdate(request)
+  } catch (error) {
+    console.error('[telegram-webhook] Update processing failed:', error)
+    return new Response('Webhook update failed.', { status: 200 })
+  }
 }

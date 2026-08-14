@@ -133,12 +133,13 @@ function uploadWithProgress(
     }
 
     xhr.onload = () => {
-      let data: any = {}
-      try {
-        data = JSON.parse(xhr.responseText)
-      } catch {
-        data = { error: { message: 'Cloudinary returned an invalid response' } }
-      }
+      const data = (() => {
+        try {
+          return JSON.parse(xhr.responseText)
+        } catch {
+          return { error: { message: 'Cloudinary returned an invalid response' } }
+        }
+      })()
       if (xhr.status < 200 || xhr.status >= 300) {
         if (!data.error) data.error = { message: 'Cloudinary rejected the upload' }
       } else {

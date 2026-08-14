@@ -82,8 +82,7 @@ export function PostInteractions({ postId, initialLikes = 0, initialComments = [
       })
       .catch(() => setCommentsLoaded(true))
       .finally(() => setIsLoadingComments(false))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [postId]) // re-fetch if postId changes (navigating between posts)
+    }, [postId]) // re-fetch if postId changes (navigating between posts)
 
   const handleLikeClick = (e: React.MouseEvent) => {
     e.preventDefault()
