@@ -89,12 +89,15 @@ export function registerAuthHandlers(bot: Bot): void {
 
   // Only fires for text messages that no earlier command handler consumed,
   // so it never intercepts /login, /logout, /start, or /help themselves.
-  bot.on('message:text', async (ctx) => {
-    if (ctx.chat.type !== 'private') return
+  bot.on('message:text', async (ctx, next) => {
+    if (ctx.chat.type !== 'private') return next()
 
     const chatId = ctx.chat.id
     const state = flows.get(chatId)
-    if (!state) return // No admin commands exist yet, so there's nothing else to do here.
+    // No login flow in progress for this chat — yield to the next
+    // registered handler (e.g. the post-management conversation flows)
+    // instead of swallowing the message.
+    if (!state) return next()
 
     if (state.step === 'awaiting_username') {
       const username = ctx.message.text.trim()

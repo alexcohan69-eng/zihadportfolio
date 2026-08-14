@@ -36,6 +36,13 @@ export interface FeedItem {
   linkedProjectId?: string
   pinned?: boolean
   comments?: FeedComment[]
+  /**
+   * Publish state. Optional and defaults to published behavior when absent
+   * so existing items (created before this field existed) are unaffected.
+   * Introduced for the Telegram bot's draft/publish step; the web admin
+   * panel does not yet expose a UI for it.
+   */
+  status?: 'draft' | 'published'
 }
 
 // ── Services ───────────────────────────────────────────────────────────────────
