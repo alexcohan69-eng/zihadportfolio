@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { PenLine } from 'lucide-react'
 import { NewPostComposer, type PostKind } from '@/components/admin/new-post-composer'
 
 export function QuickCompose() {
+  const router = useRouter()
   const [isAuth, setIsAuth] = useState(false)
   const [open, setOpen] = useState(false)
   const [defaultKind, setDefaultKind] = useState<PostKind>('post')
@@ -34,8 +36,10 @@ export function QuickCompose() {
   if (!isAuth) return null
 
   const handleSuccess = () => {
-    // Refresh the page so any feed/portfolio lists update
-    window.location.reload()
+    // Re-fetch the server-rendered feed in place (no full page reload/flash).
+    // The new post only becomes visible once this refresh resolves with the
+    // updated data, so it never "pops in" ahead of the server confirming it.
+    router.refresh()
   }
 
   return (

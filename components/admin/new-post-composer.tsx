@@ -20,6 +20,7 @@ import {
   BookOpen, Quote, Briefcase, ChevronDown,
   Music, Film, ImagePlus, ExternalLink, Code,
   AlignLeft, Image, GripVertical, Plus, Sparkles,
+  AlertCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MediaPickerModal } from '@/components/admin/media-picker-modal'
@@ -249,7 +250,7 @@ function PostingStatusToast({
 
   return (
     <div
-      className="fixed inset-x-0 bottom-0 z-[60] flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pointer-events-none animate-in slide-in-from-bottom-6 fade-in duration-300"
+      className="fixed inset-x-0 bottom-0 z-[60] flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pointer-events-none motion-safe:animate-in motion-safe:slide-in-from-bottom-6 motion-safe:fade-in motion-safe:duration-300"
       role="status"
       aria-live="polite"
     >
@@ -260,9 +261,11 @@ function PostingStatusToast({
             style={{ backgroundColor: isSuccess ? '#a8d5c220' : accent + '20' }}
           >
             {isSuccess ? (
-              <Check size={16} className="animate-in zoom-in duration-300" style={{ color: '#a8d5c2' }} />
+              <Check size={16} className="motion-safe:animate-in motion-safe:zoom-in motion-safe:duration-300" style={{ color: '#a8d5c2' }} />
             ) : (
-              <Loader2 size={16} className="animate-spin" style={{ color: accent }} />
+              // motion-reduce: the icon stays static (no spin) — the text label
+              // and progress bar below still communicate "in progress".
+              <Loader2 size={16} className="motion-safe:animate-spin" style={{ color: accent }} />
             )}
           </div>
 
@@ -291,12 +294,39 @@ function PostingStatusToast({
             />
           ) : (
             <div
-              className={cn('h-full w-full', !isSuccess && 'animate-pulse')}
+              className={cn('h-full w-full', !isSuccess && 'motion-safe:animate-pulse')}
               style={{ backgroundColor: isSuccess ? '#a8d5c2' : accent, opacity: isSuccess ? 1 : 0.5 }}
             />
           )}
         </div>
       </div>
+    </div>
+  )
+}
+
+// ─── Inline Error Banner ────────────────────────────────────────────────────
+// Shown inside the composer (never a blocking window.alert) so the user's
+// typed content stays put and they can immediately retry.
+
+function ComposerErrorBanner({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  return (
+    <div
+      role="alert"
+      className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-1 motion-safe:duration-200 mb-4 flex items-start gap-2.5 rounded-xl border border-destructive/30 bg-destructive/10 px-3.5 py-3"
+    >
+      <AlertCircle size={16} className="mt-0.5 shrink-0 text-destructive" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-destructive">Couldn&apos;t publish</p>
+        <p className="text-xs text-destructive/80 leading-relaxed">{message} Your draft is safe — try again below.</p>
+      </div>
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Dismiss error"
+        className="shrink-0 -m-1 p-1 rounded-full text-destructive/70 hover:text-destructive hover:bg-destructive/10 transition-colors"
+      >
+        <X size={13} />
+      </button>
     </div>
   )
 }
@@ -341,9 +371,19 @@ export function NewPostComposer({
   const [saving, setSaving] = useState(false)
   const [postingPhase, setPostingPhase] = useState<PostingPhase>('idle')
   const [postingProgress, setPostingProgress] = useState(0)
+  const [formError, setFormError] = useState<string | null>(null)
 
   const feedFileRef = useRef<HTMLInputElement>(null)
   const galleryRef = useRef<HTMLInputElement>(null)
+  const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Clear any pending "success flash" timeout on unmount so we never call
+  // setState on an unmounted composer (avoids leaks/console warnings).
+  useEffect(() => {
+    return () => {
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current)
+    }
+  }, [])
 
   // Fetch suggestions on mount
   useEffect(() => {
@@ -363,6 +403,7 @@ export function NewPostComposer({
     if (open) {
       const kind = defaultKind ?? 'post'
       setActiveKind(kind)
+      setFormError(null)
       if (kind === 'project') {
         setProjectFormState({ ...PROJECT_EMPTY })
         setTechTags([])
@@ -382,6 +423,7 @@ export function NewPostComposer({
   // Switch kind and reset corresponding form
   function switchKind(kind: PostKind) {
     setActiveKind(kind)
+    setFormError(null)
     if (kind === 'project') {
       setProjectFormState({ ...PROJECT_EMPTY })
       setTechTags([])
@@ -535,6 +577,7 @@ export function NewPostComposer({
 
   async function handleFeedSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setFormError(null)
     setSaving(true)
     setPostingPhase('publishing')
     setPostingProgress(0)
@@ -552,9 +595,10 @@ export function NewPostComposer({
       if (res.ok) {
         // Brief success flash before the composer clears/closes and the feed
         // refreshes — mirrors the "posted" confirmation moment on Twitter/X
-        // rather than snapping shut or reloading mid-animation.
+        // rather than snapping shut or reloading mid-animation. The post
+        // itself never renders until onSuccess() refreshes the feed data.
         setPostingPhase('success')
-        setTimeout(() => {
+        successTimeoutRef.current = setTimeout(() => {
           setPostingPhase('idle')
           setSaving(false)
           onClose()
@@ -562,13 +606,14 @@ export function NewPostComposer({
         }, 900)
         return
       }
+      // Stay open with the typed content intact — the user can fix and retry.
       setPostingPhase('idle')
       setSaving(false)
-      window.alert('Failed to publish post. Please try again.')
+      setFormError('Something went wrong while publishing your post.')
     } catch {
       setPostingPhase('idle')
       setSaving(false)
-      window.alert('Network error while publishing. Please try again.')
+      setFormError('A network error interrupted the request. Check your connection and retry.')
     }
   }
 
@@ -576,6 +621,7 @@ export function NewPostComposer({
 
   async function handleProjectSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setFormError(null)
     setSaving(true)
     setPostingPhase('publishing')
     setPostingProgress(0)
@@ -623,7 +669,7 @@ export function NewPostComposer({
 
         // Brief success flash before the composer clears/closes and the feed refreshes.
         setPostingPhase('success')
-        setTimeout(() => {
+        successTimeoutRef.current = setTimeout(() => {
           setPostingPhase('idle')
           setSaving(false)
           onClose()
@@ -631,13 +677,14 @@ export function NewPostComposer({
         }, 900)
         return
       }
+      // Stay open with the typed content intact — the user can fix and retry.
       setPostingPhase('idle')
       setSaving(false)
-      window.alert('Failed to save project. Please try again.')
+      setFormError('Something went wrong while saving your project.')
     } catch {
       setPostingPhase('idle')
       setSaving(false)
-      window.alert('Network error while saving. Please try again.')
+      setFormError('A network error interrupted the request. Check your connection and retry.')
     }
   }
 
@@ -713,6 +760,7 @@ export function NewPostComposer({
       {/* ── POST / TESTIMONIAL FORM ── */}
       {(activeKind === 'post' || activeKind === 'testimonial') && (
         <form onSubmit={handleFeedSubmit} className="p-5 overflow-y-auto max-h-[70vh]">
+        {formError && <ComposerErrorBanner message={formError} onDismiss={() => setFormError(null)} />}
         <fieldset disabled={isBusy} className="space-y-4 disabled:opacity-60 transition-opacity">
           <div>
             <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
@@ -863,7 +911,7 @@ export function NewPostComposer({
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 active:scale-95 disabled:opacity-60"
               style={{ backgroundColor: activeMeta.color, color: '#1a1a1a' }}
             >
-              {isBusy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+              {isBusy ? <Loader2 size={14} className="motion-safe:animate-spin" /> : <Check size={14} />}
               {isBusy ? 'Publishing…' : 'Publish'}
             </button>
             <button
@@ -882,6 +930,7 @@ export function NewPostComposer({
       {/* ── PROJECT FORM ── */}
       {activeKind === 'project' && (
         <form onSubmit={handleProjectSubmit} className="p-5 overflow-y-auto max-h-[70vh]">
+        {formError && <ComposerErrorBanner message={formError} onDismiss={() => setFormError(null)} />}
         <fieldset disabled={isBusy} className="space-y-4 disabled:opacity-60 transition-opacity">
           <div className="flex gap-3">
             <div className="flex-1">
@@ -1080,7 +1129,7 @@ export function NewPostComposer({
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:opacity-90 active:scale-95 disabled:opacity-60"
               style={{ backgroundColor: '#9db8e8', color: '#1a1a1a' }}
             >
-              {isBusy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+              {isBusy ? <Loader2 size={14} className="motion-safe:animate-spin" /> : <Check size={14} />}
               {isBusy ? 'Saving…' : 'Add Project'}
             </button>
             <button
