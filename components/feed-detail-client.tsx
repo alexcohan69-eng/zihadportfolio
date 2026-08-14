@@ -12,6 +12,7 @@ import { PageShell } from '@/components/page-shell'
 import { PostInteractions } from '@/components/post-interactions'
 import { SmartMedia } from '@/components/shared/smart-media'
 import { LightboxGallery } from '@/components/shared/lightbox-gallery'
+import { RelativeTime } from '@/components/shared/relative-time'
 import { pauseOtherVideos } from '@/lib/utils'
 import type { FeedItem, Project } from '@/lib/types'
 
@@ -116,7 +117,7 @@ export function FeedDetailClient({
               <TypeIcon size={11} style={{ color: meta.color }} />
               <span className="text-[11px] font-medium" style={{ color: meta.color }}>{meta.label}</span>
               <span className="text-muted-foreground text-[11px]">·</span>
-              <span className="text-[11px] text-muted-foreground">{item.date}</span>
+              <RelativeTime date={item.date} className="text-[11px] text-muted-foreground" />
             </div>
           </div>
           {item.featured && (
@@ -323,7 +324,7 @@ export function FeedDetailClient({
 
         {/* Divider */}
         <div className="border-t border-border pt-4 mb-1 flex items-center justify-between">
-          <p className="text-xs text-muted-foreground">{new Date(item.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+          <RelativeTime date={item.date} className="text-xs text-muted-foreground" />
           <button
             className="text-muted-foreground hover:text-foreground transition-colors"
             aria-label="Share"

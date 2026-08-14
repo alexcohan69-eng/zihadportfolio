@@ -9,6 +9,7 @@ import { deleteFeedItem, updateFeedItem } from '@/lib/data-actions'
 import { useAdminStatus } from '@/hooks/use-admin-status'
 import { SmartMedia } from '@/components/shared/smart-media'
 import { LightboxGallery } from '@/components/shared/lightbox-gallery'
+import { RelativeTime } from '@/components/shared/relative-time'
 
 type FeedType = 'testimonial' | 'project' | 'portfolio' | 'post' | 'general'
 
@@ -206,7 +207,7 @@ export function FeedItem({
           {type !== 'testimonial' && authorRole && <span className="text-xs text-muted-foreground">{authorRole}</span>}
           
           <span className="text-xs text-muted-foreground ml-auto shrink-0 flex items-center gap-1">
-            {date}
+            <RelativeTime date={date} />
             {pinned && <Pin size={12} className="text-[#f4a295] shrink-0" />}
           </span>
 

@@ -43,7 +43,7 @@ export async function addFeedItem(
     const newItem: FeedItem = {
       ...item,
       id: `feed-${Date.now()}`,
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString(),
       likes: 0,
       replies: 0,
     }
@@ -233,7 +233,7 @@ export async function shareServiceToFeed(
       image: coverMedia,
       media: coverMedia ? [coverMedia] : [],
       author: 'Zihad Imtiase',
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString(),
       likes: 0,
       replies: 0,
       link: `/services/${service.slug}`,

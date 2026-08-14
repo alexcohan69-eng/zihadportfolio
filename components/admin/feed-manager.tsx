@@ -16,6 +16,7 @@ import { CreatableSelect } from './creatable-select'
 import { MediaThumb } from './media-thumb'
 import { TypePickerPopover, KIND_OPTIONS, type PostKind } from './type-picker-popover'
 import { uploadFileDirect } from '@/lib/upload-client'
+import { RelativeTime } from '@/components/shared/relative-time'
 
 // ─── Feed item types ──────────────────────────────────────────────────────────
 
@@ -629,7 +630,7 @@ export function FeedManager() {
                 <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Date</label>
                 <input
                   type="date"
-                  value={feedForm.date}
+                  value={feedForm.date ? feedForm.date.slice(0, 10) : ''}
                   onChange={(e) => setFeed('date', e.target.value)}
                   className="px-3.5 py-2.5 rounded-xl border border-border bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
                 />
@@ -927,7 +928,7 @@ export function FeedManager() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground truncate">{item.title || '(no title)'}</p>
                   <p className="text-xs text-muted-foreground">
-                    {kindMeta.label} · {item.date}
+                    {kindMeta.label} · <RelativeTime date={item.date} />
                     {allMedia.length > 0 && ` · ${allMedia.length} media`}
                   </p>
                 </div>
