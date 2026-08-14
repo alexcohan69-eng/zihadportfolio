@@ -15,6 +15,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   X, Check, Upload, Loader2, Star,
   BookOpen, Quote, Briefcase, ChevronDown,
@@ -230,22 +231,30 @@ function MediaThumb({ url, onRemove }: { url: string; onRemove: () => void }) {
 
 // ─── Posting Status Toast (Twitter-style) ──────────────────────────────────────
 
-export type PostingPhase = 'idle' | 'uploading' | 'publishing' | 'success'
+// 'confirming': the API call has already succeeded and the post exists in the
+// database — the toast stays up while we wait for it to actually mount in the
+// feed DOM, so there is never a gap between the toast disappearing and the
+// post appearing.
+export type PostingPhase = 'idle' | 'uploading' | 'publishing' | 'confirming' | 'success'
 
 function PostingStatusToast({
   phase,
   progress,
   accent,
   label,
+  slow,
 }: {
   phase: PostingPhase
   progress: number
   accent: string
   label: string
+  /** True once "confirming" has taken longer than expected (>10s) — swaps in a "still working" message. */
+  slow?: boolean
 }) {
   if (phase === 'idle') return null
 
   const isUploading = phase === 'uploading'
+  const isConfirming = phase === 'confirming'
   const isSuccess = phase === 'success'
 
   return (
@@ -271,14 +280,22 @@ function PostingStatusToast({
 
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-foreground truncate">
-              {isSuccess ? 'Published!' : isUploading ? 'Uploading media…' : label}
+              {isSuccess
+                ? 'Published!'
+                : isUploading
+                  ? 'Uploading media…'
+                  : isConfirming
+                    ? (slow ? 'Still processing…' : 'Processing…')
+                    : label}
             </p>
             <p className="text-[11px] text-muted-foreground truncate">
               {isSuccess
                 ? 'Your post is now live in the feed'
                 : isUploading
                   ? `${Math.max(progress, 1)}% complete`
-                  : 'Saving your post…'}
+                  : isConfirming
+                    ? (slow ? 'This is taking longer than usual — hang tight' : 'Confirming your post is live…')
+                    : 'Saving your post…'}
             </p>
           </div>
 
@@ -331,6 +348,62 @@ function ComposerErrorBanner({ message, onDismiss }: { message: string; onDismis
   )
 }
 
+// ─── DOM confirmation ──────────────────────────────────────────────────────
+// Watches for an element (identified by the `data-post-id` attribute added
+// to each FeedItem) to actually mount, instead of trusting that a successful
+// API response means the post is visible yet. A MutationObserver is used
+// rather than polling so it's zero-cost while idle and reacts the instant
+// the feed re-renders after router.refresh().
+//
+// `cancel` lets the caller tear the observer/timers down early (e.g. on
+// unmount) so nothing keeps running — and therefore nothing calls back into
+// state — after the composer is gone.
+
+function waitForElementInDom(
+  selector: string,
+  options: { timeoutMs?: number; slowMs?: number; onSlow?: () => void } = {},
+): { promise: Promise<boolean>; cancel: () => void } {
+  const { timeoutMs = 16000, slowMs = 10000, onSlow } = options
+
+  let settle: (found: boolean) => void = () => {}
+  let observer: MutationObserver | null = null
+  let slowTimer: ReturnType<typeof setTimeout> | null = null
+  let hardTimer: ReturnType<typeof setTimeout> | null = null
+
+  const cleanup = () => {
+    observer?.disconnect()
+    observer = null
+    if (slowTimer) clearTimeout(slowTimer)
+    if (hardTimer) clearTimeout(hardTimer)
+  }
+
+  const promise = new Promise<boolean>((resolve) => {
+    settle = (found) => {
+      cleanup()
+      resolve(found)
+    }
+
+    if (document.querySelector(selector)) {
+      settle(true)
+      return
+    }
+
+    observer = new MutationObserver(() => {
+      if (document.querySelector(selector)) settle(true)
+    })
+    observer.observe(document.body, { childList: true, subtree: true })
+
+    slowTimer = setTimeout(() => onSlow?.(), slowMs)
+    // Even if the post never mounts here (e.g. it's outside the current feed
+    // filter, or the composer was opened from a page with no feed at all),
+    // the server already confirmed the write — so we fall back to treating
+    // it as live rather than hanging the loading state forever.
+    hardTimer = setTimeout(() => settle(false), timeoutMs)
+  })
+
+  return { promise, cancel: () => settle(false) }
+}
+
 export interface NewPostComposerProps {
   open: boolean
   onClose: () => void
@@ -349,6 +422,8 @@ export function NewPostComposer({
   uploadFormat = 'webp',
   asModal = true,
 }: NewPostComposerProps) {
+  const router = useRouter()
+
   // ── Kind ──
   const [activeKind, setActiveKind] = useState<PostKind>(defaultKind ?? 'post')
 
@@ -372,16 +447,24 @@ export function NewPostComposer({
   const [postingPhase, setPostingPhase] = useState<PostingPhase>('idle')
   const [postingProgress, setPostingProgress] = useState(0)
   const [formError, setFormError] = useState<string | null>(null)
+  // True once DOM-confirmation of a just-published post has taken >10s.
+  const [isSlowConfirm, setIsSlowConfirm] = useState(false)
 
   const feedFileRef = useRef<HTMLInputElement>(null)
   const galleryRef = useRef<HTMLInputElement>(null)
   const successTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const confirmCancelRef = useRef<(() => void) | null>(null)
+  const isMountedRef = useRef(true)
 
-  // Clear any pending "success flash" timeout on unmount so we never call
-  // setState on an unmounted composer (avoids leaks/console warnings).
+  // Clear any pending "success flash" timeout and any in-flight DOM
+  // confirmation watcher on unmount so we never call setState on an
+  // unmounted composer (avoids leaks/console warnings).
   useEffect(() => {
+    isMountedRef.current = true
     return () => {
+      isMountedRef.current = false
       if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current)
+      confirmCancelRef.current?.()
     }
   }, [])
 
@@ -573,6 +656,49 @@ export function NewPostComposer({
     }
   }
 
+  // ── Post-submit: wait for DOM, then flash success + redirect ──
+  //
+  // Called once the server has confirmed the write. Refreshes the feed
+  // immediately (rather than after an artificial delay) and keeps the
+  // "Publishing…" toast up — now as "Processing…" — until the new post's
+  // element actually mounts, so there's no gap between the toast finishing
+  // and the post appearing. Only then does it flash "Published!" and
+  // redirect to the post's detail page.
+  async function confirmAndRedirect(newId: string | undefined, detailPath?: (id: string) => string) {
+    setIsSlowConfirm(false)
+    setPostingPhase('confirming')
+
+    // Re-fetch the server-rendered feed in place — no full page reload/flash.
+    onSuccess?.()
+
+    if (newId) {
+      const { promise, cancel } = waitForElementInDom(`[data-post-id="${newId}"]`, {
+        onSlow: () => { if (isMountedRef.current) setIsSlowConfirm(true) },
+      })
+      confirmCancelRef.current = cancel
+      await promise
+      confirmCancelRef.current = null
+    }
+
+    if (!isMountedRef.current) return
+
+    setIsSlowConfirm(false)
+    setPostingPhase('success')
+    successTimeoutRef.current = setTimeout(() => {
+      setPostingPhase('idle')
+      setSaving(false)
+      onClose()
+      if (newId && detailPath) {
+        try {
+          router.push(detailPath(newId))
+        } catch {
+          // Navigation failed — the post is already confirmed live, so the
+          // admin can still find and open it manually from the feed.
+        }
+      }
+    }, 900)
+  }
+
   // ── Submit: Feed ──
 
   async function handleFeedSubmit(e: React.FormEvent) {
@@ -593,17 +719,9 @@ export function NewPostComposer({
         body: JSON.stringify(payload),
       })
       if (res.ok) {
-        // Brief success flash before the composer clears/closes and the feed
-        // refreshes — mirrors the "posted" confirmation moment on Twitter/X
-        // rather than snapping shut or reloading mid-animation. The post
-        // itself never renders until onSuccess() refreshes the feed data.
-        setPostingPhase('success')
-        successTimeoutRef.current = setTimeout(() => {
-          setPostingPhase('idle')
-          setSaving(false)
-          onClose()
-          onSuccess?.()
-        }, 900)
+        const saved = await res.json().catch(() => null)
+        const newId: string | undefined = saved?.item?.id
+        await confirmAndRedirect(newId, (id) => `/feed/${id}`)
         return
       }
       // Stay open with the typed content intact — the user can fix and retry.
@@ -653,12 +771,15 @@ export function NewPostComposer({
           featured: projectData.featured ?? false,
           linkedProjectId: projectData.id ?? saved.project?.id ?? '',
         }
+        let feedItemId: string | undefined
         try {
-          await fetch('/api/feed', {
+          const feedRes = await fetch('/api/feed', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(feedPost),
           })
+          const feedSaved = await feedRes.json().catch(() => null)
+          feedItemId = feedSaved?.item?.id
         } catch {}
 
         // Refresh tech suggestions with newly added tags
@@ -667,14 +788,10 @@ export function NewPostComposer({
           return next
         })
 
-        // Brief success flash before the composer clears/closes and the feed refreshes.
-        setPostingPhase('success')
-        successTimeoutRef.current = setTimeout(() => {
-          setPostingPhase('idle')
-          setSaving(false)
-          onClose()
-          onSuccess?.()
-        }, 900)
+        // Redirect to the project's auto-synced feed post once it's confirmed
+        // live. If the feed sync above failed, we still know the project
+        // itself saved — just skip the redirect and close normally.
+        await confirmAndRedirect(feedItemId, feedItemId ? (id) => `/feed/${id}` : undefined)
         return
       }
       // Stay open with the typed content intact — the user can fix and retry.
@@ -1153,6 +1270,7 @@ export function NewPostComposer({
         progress={postingProgress}
         accent={activeMeta.color}
         label={activeKind === 'project' ? 'Publishing project…' : 'Publishing post…'}
+        slow={isSlowConfirm}
       />
     </div>
   )
