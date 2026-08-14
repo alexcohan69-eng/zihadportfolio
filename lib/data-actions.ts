@@ -43,7 +43,10 @@ export async function addFeedItem(
     const newItem: FeedItem = {
       ...item,
       id: `feed-${Date.now()}`,
-      date: new Date().toISOString().split('T')[0],
+      // Full ISO timestamp (not just the date) so the Twitter/X-style
+      // "just now" / "5 min ago" / "3 hours ago" display can tell time-of-day
+      // apart for the first 24h after publishing.
+      date: new Date().toISOString(),
       likes: 0,
       replies: 0,
     }
@@ -233,7 +236,7 @@ export async function shareServiceToFeed(
       image: coverMedia,
       media: coverMedia ? [coverMedia] : [],
       author: 'Zihad Imtiase',
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString(),
       likes: 0,
       replies: 0,
       link: `/services/${service.slug}`,
