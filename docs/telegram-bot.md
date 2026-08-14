@@ -17,6 +17,10 @@ A Telegram bot that lets the site admin manage posts, services, and site setting
 9. [Architecture Overview](#9-architecture-overview)
 10. [Known Limitations & Future Improvements](#10-known-limitations--future-improvements)
 11. [Manual Test Checklist](#11-manual-test-checklist)
+12. [Process Management & Reliability](#12-process-management--reliability)
+13. [Health Checks & Monitoring](#13-health-checks--monitoring)
+14. [Deployment Checklist](#14-deployment-checklist)
+15. [Troubleshooting](#15-troubleshooting)
 
 ---
 
@@ -91,7 +95,14 @@ In production, don't poll — let Telegram push updates to an HTTPS endpoint. Th
    TELEGRAM_WEBHOOK_SECRET=some-long-random-string
    ```
 2. On boot, `lib/telegram/start.ts` detects webhook mode and does **not** start polling — it just warms up `bot.botInfo` and logs a reminder.
-3. Register the webhook with Telegram once (it stays registered until changed), by calling the Bot API directly:
+3. Register the webhook with Telegram once (it stays registered until changed). Two equivalent ways to do this:
+
+   **Using the bundled script** (reads `TELEGRAM_BOT_TOKEN`/`TELEGRAM_WEBHOOK_URL`/`TELEGRAM_WEBHOOK_SECRET` from your environment):
+   ```bash
+   npm run telegram:webhook:set
+   ```
+
+   **Or by calling the Bot API directly:**
    ```bash
    curl "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
      -d "url=https://yourdomain.com/api/telegram/webhook" \
@@ -99,11 +110,14 @@ In production, don't poll — let Telegram push updates to an HTTPS endpoint. Th
    ```
 4. Verify it's registered:
    ```bash
-   curl "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo"
+   npm run telegram:webhook:info
+   # or: curl "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getWebhookInfo"
    ```
    You should see your URL under `"url"` and `"last_error_message"` empty (or absent).
 
-To switch back to polling later, call `setWebhook` with an empty `url` value first — Telegram refuses to deliver updates via both modes to the same bot at once.
+To switch back to polling later, run `npm run telegram:webhook:delete` (or call `setWebhook` with an empty `url`) first — Telegram refuses to deliver updates via both modes to the same bot at once.
+
+> **Running on Vercel specifically:** environment variables go in Project Settings → Environment Variables (not a `.env` file, which isn't deployed). Run the `telegram:webhook:set` script from your local machine or CI **after** the deployment with the new URL is live — the script only talks to Telegram's API, it doesn't need to run on the server itself.
 
 ---
 
@@ -270,3 +284,152 @@ Run through this after any change to the bot code:
 - [ ] `/cancel` mid-flow (try it during `/newpost`, `/editpost`, `/sitesettings`, and `/newservice`) → flow aborts cleanly, no leftover state (verify by starting the same command again immediately after).
 - [ ] `/logout` → immediately after, an admin command returns `Please /login first.` again.
 - [ ] Existing web admin panel pages (Feed, Site Settings, Services) still work and reflect bot-made changes and vice versa.
+- [ ] Log in from a second Telegram account with the wrong credentials → also gets `Invalid username or password.` (there's no per-account allowlist — the same single `ADMIN_USERNAME`/`ADMIN_PASSWORD` pair gates every chat, matching the web admin panel).
+- [ ] Run through `/login` → `/newpost` → `/posts` on a mobile Telegram client, not just Desktop/Web — inline keyboards and the photo-upload step both render and behave the same.
+
+---
+
+## 12. Process Management & Reliability
+
+This app deploys to **Vercel**, which is serverless — there is no long-running process for a process manager (pm2, systemd) to supervise, and Vercel itself handles restarts, crash recovery, and restart-on-deploy. This changes which of the two bot modes is viable in production:
+
+- **Webhook mode is the only viable mode on Vercel.** Each incoming update is a normal, short-lived serverless function invocation (`app/api/telegram/webhook/route.ts`) — it starts, handles one update, and exits, which fits Vercel's model perfectly and responds well within Telegram's 60-second delivery timeout.
+- **Long polling cannot run reliably on Vercel.** `bot.start()` (used in `TELEGRAM_BOT_MODE=polling`) holds an open connection to Telegram indefinitely, which a serverless function invocation cannot do — it will be killed after the platform's execution limit and immediately reconnect on the next cold start, causing repeated `409 Conflict` errors and dropped updates. Polling is intended for **local development only** in this app; production must set `TELEGRAM_BOT_MODE=webhook`.
+- **Reliability on Vercel comes from the platform, not a process supervisor:** every deployment automatically restarts all functions, a crashing function invocation doesn't take down others, and there's no persistent process to leak memory or need a `pm2 restart`. This is why `instrumentation.ts`'s `register()` hook — not a custom `server.js` — is what calls `startTelegramBot()`.
+
+### If self-hosting instead (e.g. `next start` on a VM)
+
+If you deploy this app somewhere other than Vercel — a VM, a container host, anything running `next start` as a long-lived process — you *can* use either mode, and a process manager becomes genuinely useful for keeping that one process alive across crashes and reboots. Two common options:
+
+**pm2:**
+```bash
+npm install -g pm2
+pm2 start "npm run start" --name zihad-portfolio
+pm2 save            # persist the process list
+pm2 startup         # print + run the OS-specific boot script so pm2 restarts it on reboot
+pm2 logs zihad-portfolio     # tail logs
+pm2 restart zihad-portfolio  # after a deploy
+```
+
+**systemd** (`/etc/systemd/system/zihad-portfolio.service`):
+```ini
+[Unit]
+Description=Zihad Portfolio (Next.js + Telegram bot)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/zihad-portfolio
+ExecStart=/usr/bin/npm run start
+Restart=on-failure
+RestartSec=5
+EnvironmentFile=/opt/zihad-portfolio/.env.production
+User=www-data
+
+[Install]
+WantedBy=multi-user.target
+```
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now zihad-portfolio
+sudo systemctl status zihad-portfolio
+journalctl -u zihad-portfolio -f     # tail logs
+```
+
+Either mode works with either supervisor here; polling is simpler to set up (no public URL, no `setWebhook` call) but only one process may poll a given token at a time, so it doesn't horizontally scale the way webhook mode does behind a load balancer with multiple app instances.
+
+### Graceful shutdown
+
+`lib/telegram/start.ts` registers `SIGINT`/`SIGTERM` handlers that call `stopTelegramBot()` before the process exits — in polling mode this stops the poll loop cleanly (`bot.stop()`) instead of leaving Telegram's long-poll connection dangling; in webhook mode it's a no-op since nothing is polling. This matters for the self-hosted path above, where pm2/systemd send `SIGTERM` on every restart/redeploy — without it, a restart could occasionally overlap with an in-flight poll request. It's irrelevant to Vercel's own restart behavior, which recycles whole function invocations rather than sending signals to a persistent process.
+
+In-memory state (login/post/settings/service conversation flows, the shared `Bot` instance) is intentionally **not** persisted — see [Architecture Overview](#9-architecture-overview). A restart mid-conversation just means the admin re-sends the command; sessions themselves survive restarts because they live in MongoDB, not memory.
+
+---
+
+## 13. Health Checks & Monitoring
+
+### Health check endpoint
+
+`GET /api/telegram/health` always returns `200` (it reports on the bot's health, but doesn't fail the site's own health check just because the bot isn't configured — see the route's own doc comment) with a small JSON body:
+
+```json
+{ "status": "ok", "configured": true, "ready": true, "mode": "webhook", "botUsername": "zihad_admin_bot" }
+```
+
+| `status` | Meaning |
+|---|---|
+| `unconfigured` | `TELEGRAM_BOT_TOKEN` isn't set. Expected/fine if you're not using the bot at all. |
+| `starting` | Configured, but `startTelegramBot()` hasn't finished yet (e.g. right at cold start). |
+| `misconfigured` | Configured but invalid — e.g. `TELEGRAM_BOT_MODE=webhook` without `TELEGRAM_WEBHOOK_URL`. Check the `error` field. |
+| `ok` | Ready. In webhook mode this only confirms the app's own state, not that Telegram is actually delivering to it — pair with `getWebhookInfo` below. |
+
+Point an uptime monitor (Vercel's own, UptimeRobot, Better Stack, etc.) at this URL if you want an alert when the bot silently stops being configured after a deploy (e.g. an env var got removed).
+
+### Verifying Telegram's side (webhook mode)
+
+The health endpoint only reports local state — it deliberately never calls the Telegram API (to avoid adding latency or eating into rate limits on every monitor poll). To confirm Telegram itself is delivering successfully:
+
+```bash
+npm run telegram:webhook:info
+```
+
+Check `last_error_date`/`last_error_message` in the output — a non-empty `last_error_message` means Telegram tried to deliver and failed (see [Troubleshooting](#15-troubleshooting)).
+
+### Logs
+
+All bot activity goes through `lib/telegram/logger.ts` (see [Logging](#8-logging)) as structured `console.log`/`console.error` lines prefixed `[telegram-bot]`. On Vercel, view these under your project → **Deployments → (latest) → Runtime Logs**, or stream them live with:
+
+```bash
+vercel logs <deployment-url> --follow
+```
+
+Every line is safe to read or export anywhere — chat IDs are masked, and credentials are never logged (see [Security Notes](#7-security-notes)).
+
+### Critical-error alerting
+
+`bot.ts`'s global `bot.catch()` — the last-resort handler for anything that escaped every command/callback's own error handling — calls `logCritical()` for genuine programming errors (as opposed to expected Telegram-API/network hiccups, which are logged but don't alert). `logCritical()`:
+
+- Always logs the full error server-side first (same as `logError()`).
+- If `RESEND_API_KEY` is set, also sends a one-off email alert via Resend — reusing the exact same `Resend` client + fixed-recipient pattern already used for offline-chat-message notifications in `app/api/messages/route.ts`, so no new alerting infrastructure was introduced.
+- Is rate-limited to at most one email every 15 minutes, so a burst of repeated failures (e.g. MongoDB briefly down) sends one alert, not a mailbox flood.
+- Never includes the bot token, admin credentials, or an unmasked chat id in the email body.
+
+If `RESEND_API_KEY` isn't set, alerting is silently skipped — logging still happens either way, so this is optional hardening, not a requirement.
+
+---
+
+## 14. Deployment Checklist
+
+Run through this whenever deploying the bot to a new environment or rotating its token:
+
+- [ ] `TELEGRAM_BOT_TOKEN` set in the target environment (Vercel Project Settings → Environment Variables, or the host's env mechanism).
+- [ ] `TELEGRAM_BOT_MODE=webhook` set for any deployed environment (`polling` is for local dev only — see [Process Management & Reliability](#12-process-management--reliability)).
+- [ ] `TELEGRAM_WEBHOOK_URL` set to the exact deployed URL, e.g. `https://yourdomain.com/api/telegram/webhook` (must be HTTPS).
+- [ ] `TELEGRAM_WEBHOOK_SECRET` set to a long random string (not required, but strongly recommended — without it, anyone who guesses the webhook URL can POST forged updates to it).
+- [ ] `ADMIN_USERNAME`/`ADMIN_PASSWORD`, `MONGODB_URI`, and the `CLOUDINARY_*` vars are already set for the web app and don't need duplicating — the bot reuses them.
+- [ ] Deploy the app.
+- [ ] `npm run telegram:webhook:set` (run locally/CI, after the deploy is live).
+- [ ] `npm run telegram:webhook:info` — confirm `url` matches and `last_error_message` is empty.
+- [ ] `GET /api/telegram/health` returns `"status": "ok"`.
+- [ ] Send `/start` and `/login` from Telegram and confirm a reply arrives within a couple of seconds.
+- [ ] Run the [Manual Test Checklist](#11-manual-test-checklist) end-to-end at least once against the new deployment.
+- [ ] If `RESEND_API_KEY` is set, confirm you're comfortable receiving alert emails at the hardcoded recipient in `logCritical()` (`lib/telegram/logger.ts`) — update it there if the alerting inbox should change.
+
+---
+
+## 15. Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `getWebhookInfo` shows no `url`, or bot never responds | Webhook was never registered (or was cleared) | Run `npm run telegram:webhook:set` |
+| Webhook route returns 404 | `TELEGRAM_BOT_MODE` isn't `webhook` in that environment, or the URL registered with Telegram doesn't match the deployed route path | Check the env var is actually set in that environment (not just `.env.local`, which doesn't deploy); confirm `TELEGRAM_WEBHOOK_URL` ends in `/api/telegram/webhook` exactly |
+| `getWebhookInfo` → `last_error_message` mentions an SSL/certificate error | The webhook URL isn't served over valid HTTPS (self-signed cert, expired cert, or plain HTTP) | Use a host with a valid TLS certificate — Vercel provides this automatically for its own domains; a custom domain needs its own valid cert |
+| Bot doesn't respond, but `getWebhookInfo` shows no errors and a recent `url` | The deployment itself may be failing before reaching the route, or `TELEGRAM_BOT_TOKEN` is wrong/revoked for this environment | Check `GET /api/telegram/health` — `misconfigured`/`unconfigured` points at an env var problem; also check runtime logs for the request actually arriving |
+| `401 Unauthorized` from Telegram when calling `setWebhook`/`getWebhookInfo` | Wrong or revoked `TELEGRAM_BOT_TOKEN` | Get a fresh token from @BotFather (`/mybots` → your bot → API Token) and update the env var everywhere it's set |
+| Webhook requests arrive but the bot ignores them / no log lines appear | `TELEGRAM_WEBHOOK_SECRET` mismatch — Telegram's `X-Telegram-Bot-Api-Secret-Token` header doesn't match what the route expects | Confirm the same value is set for `TELEGRAM_WEBHOOK_SECRET` in both the deployed env **and** whatever you passed to `setWebhook`/the CLI script |
+| `409 Conflict` in logs, from Telegram | Two processes are polling the same bot token simultaneously (e.g. a leftover local `next dev` still running, or both polling and webhook configured at once) | Stop the other process, or use separate bot tokens for local dev vs. production; `deleteWebhook` before switching to polling |
+| "File is too large" error when sending a photo/video to the bot | Telegram's Bot API only lets bots download files up to 20MB (`MAX_TELEGRAM_FILE_BYTES` in `lib/telegram/media.ts`) — this is a hard Telegram limit, not something this app can raise | Upload larger media from the web admin panel instead |
+| `Please /login first.` immediately after a successful `/login` | Session lookup is failing — usually a `MONGODB_URI` problem, since sessions live in the `telegram_sessions` collection | Check `GET /api/telegram/health` and runtime logs for MongoDB connection errors; confirm `MONGODB_URI` is set correctly in that environment |
+| Bot responds to some commands but times out on others (e.g. slow `/posts`, `/newpost` media upload) | A slow MongoDB or Cloudinary round trip inside a single serverless invocation, close to Telegram's 60-second webhook delivery timeout | Check the runtime logs for the slow call; this usually indicates a database/network issue rather than a bot bug — the bot itself does no heavy local processing |
+| Not receiving critical-error alert emails | `RESEND_API_KEY` isn't set (alerting is optional), or the 15-minute cooldown suppressed a burst, or Resend itself rejected the send | Check runtime logs — `logCritical()` always logs even if the email fails; a failed send logs `Failed to send critical-error alert email` separately |
+| Everything above checks out but the bot still seems broken | — | Re-run the [Manual Test Checklist](#11-manual-test-checklist) from a fresh chat (not one that was mid-flow before the fix) to rule out stale in-memory conversation state |

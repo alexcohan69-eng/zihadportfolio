@@ -12,8 +12,42 @@
 import { getBot } from './bot'
 import { getTelegramConfig, isTelegramConfigured } from './config'
 
-let started = false
-let shutdownHandlersRegistered = false
+declare global {
+  // eslint-disable-next-line no-var
+  var _telegramBotStarted: boolean | undefined
+  // eslint-disable-next-line no-var
+  var _telegramShutdownHandlersRegistered: boolean | undefined
+}
+
+// Both flags live on `globalThis` — same reason as `getBot()`'s `Bot`
+// instance and `session-store.ts`'s flow maps. `instrumentation.ts`
+// (which calls `startTelegramBot()`) and `app/api/telegram/*` route
+// handlers can end up in separate bundle chunks with their own module
+// scope, so a plain module-level `let started = false` here would never
+// be seen as `true` by the health-check route even after polling/webhook
+// init genuinely succeeded elsewhere in the same process.
+function isStarted(): boolean {
+  return globalThis._telegramBotStarted ?? false
+}
+
+function setStarted(value: boolean): void {
+  globalThis._telegramBotStarted = value
+}
+
+/** Whether `startTelegramBot()` has finished (used by the `/api/telegram/health` route). */
+export function isTelegramBotReady(): boolean {
+  return isStarted()
+}
+
+/** The bot's @username once known, for display in the health check — never the token. */
+export function getTelegramBotUsername(): string | undefined {
+  if (!isStarted() || !isTelegramConfigured()) return undefined
+  try {
+    return getBot().botInfo?.username
+  } catch {
+    return undefined
+  }
+}
 
 /**
  * Starts the bot according to `TELEGRAM_BOT_MODE`. Safe to call multiple
@@ -22,7 +56,7 @@ let shutdownHandlersRegistered = false
  * crashing the host process (dev server, `next build`, etc.).
  */
 export async function startTelegramBot(): Promise<void> {
-  if (started) return
+  if (isStarted()) return
 
   if (!isTelegramConfigured()) {
     console.log('[telegram-bot] TELEGRAM_BOT_TOKEN not set — skipping startup.')
@@ -39,7 +73,7 @@ export async function startTelegramBot(): Promise<void> {
     // `bot.init()` warms up `bot.botInfo` so the webhook handler doesn't
     // pay that round trip on the first incoming update.
     await bot.init()
-    started = true
+    setStarted(true)
     console.log(
       `[telegram-bot] Running in webhook mode as @${bot.botInfo.username}. ` +
         `Make sure the webhook is registered for ${config.TELEGRAM_WEBHOOK_URL}.`
@@ -47,7 +81,7 @@ export async function startTelegramBot(): Promise<void> {
     return
   }
 
-  started = true
+  setStarted(true)
 
   // `bot.start()` resolves once polling stops, so it's intentionally not
   // awaited here — callers just want startup kicked off.
@@ -58,25 +92,25 @@ export async function startTelegramBot(): Promise<void> {
       },
     })
     .catch((err) => {
-      started = false
+      setStarted(false)
       console.error('[telegram-bot] Polling stopped due to an error:', err)
     })
 }
 
 /** Stops long polling (no-op in webhook mode, since nothing is polling). */
 export async function stopTelegramBot(): Promise<void> {
-  if (!started) return
+  if (!isStarted()) return
   const config = getTelegramConfig()
   if (config.TELEGRAM_BOT_MODE === 'polling') {
     await getBot().stop()
     console.log('[telegram-bot] Polling stopped.')
   }
-  started = false
+  setStarted(false)
 }
 
 function registerShutdownHandlers(): void {
-  if (shutdownHandlersRegistered) return
-  shutdownHandlersRegistered = true
+  if (globalThis._telegramShutdownHandlersRegistered) return
+  globalThis._telegramShutdownHandlersRegistered = true
 
   const shutdown = (signal: string) => {
     console.log(`[telegram-bot] Received ${signal}, shutting down gracefully...`)

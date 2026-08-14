@@ -39,6 +39,53 @@ export function logError(context: string, chatId: number | string | undefined, e
   console.error(`[telegram-bot] ${timestamp()} chat=${maskChatId(chatId)} action="${context}" status=error:`, error.stack ?? error.message)
 }
 
+declare global {
+  // eslint-disable-next-line no-var
+  var _telegramLastAlertAt: number | undefined
+}
+
+/** Minimum gap between alert emails, so a burst of failures sends one email, not one per error. */
+const ALERT_COOLDOWN_MS = 15 * 60 * 1000
+
+/**
+ * Best-effort email alert for errors that escaped every other handler
+ * (currently only wired into `bot.ts`'s last-resort `bot.catch()`).
+ * Reuses the same Resend + fixed-recipient pattern already used for
+ * offline-message alerts in `app/api/messages/route.ts`, rather than
+ * introducing a new notification channel. Rate-limited to at most one
+ * email per `ALERT_COOLDOWN_MS` — never throws, and never includes the
+ * bot token, admin credentials, or full chat ids in the email body.
+ */
+export async function logCritical(context: string, chatId: number | string | undefined, err: unknown): Promise<void> {
+  logError(context, chatId, err)
+
+  const key = process.env.RESEND_API_KEY
+  if (!key) return // Alerting is optional — logs above are always captured regardless.
+
+  const now = Date.now()
+  if (globalThis._telegramLastAlertAt && now - globalThis._telegramLastAlertAt < ALERT_COOLDOWN_MS) return
+  globalThis._telegramLastAlertAt = now
+
+  try {
+    const { Resend } = await import('resend')
+    const resend = new Resend(key)
+    const error = err instanceof Error ? err : new Error(String(err))
+    await resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: ['zdimtiase@gmail.com'],
+      subject: `Telegram bot error — ${context}`,
+      html:
+        `<p>An unhandled error reached the Telegram bot's global error handler.</p>` +
+        `<p><strong>Context:</strong> ${context}<br/><strong>Chat:</strong> ${maskChatId(chatId)}<br/><strong>Time:</strong> ${timestamp()}</p>` +
+        `<pre style="white-space:pre-wrap;background:#f6f6f7;padding:12px;border-radius:8px;font-size:12px">${(error.stack ?? error.message).replace(/</g, '&lt;')}</pre>` +
+        `<p style="color:#888;font-size:12px">Further alerts are suppressed for ${ALERT_COOLDOWN_MS / 60_000} minutes to avoid spam — check the server logs for the full picture.</p>`,
+    })
+  } catch (alertErr) {
+    // Alerting itself must never crash the handler it's alerting from.
+    console.error('[telegram-bot] Failed to send critical-error alert email:', alertErr)
+  }
+}
+
 /** Logs a non-fatal warning (e.g. a best-effort operation that failed but didn't block the flow). */
 export function logWarn(context: string, chatId: number | string | undefined, message: string): void {
   console.warn(`[telegram-bot] ${timestamp()} chat=${maskChatId(chatId)} action="${context}" status=warn: ${message}`)
