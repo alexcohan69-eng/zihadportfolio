@@ -17,12 +17,19 @@ function stripId<T extends { _id?: unknown }>(doc: T): Omit<T, '_id'> {
 
 // ── Feed ──────────────────────────────────────────────────────────────────────
 
-export async function readFeedData(): Promise<{ items: FeedItem[] }> {
+export async function readFeedData(
+  opts: { includeDrafts?: boolean } = {},
+): Promise<{ items: FeedItem[] }> {
   try {
     const db = await getDb()
+    // `$ne: 'draft'` also matches documents where `status` doesn't exist at
+    // all, so every item created before the `status` field existed is
+    // unaffected — this filter only ever hides items explicitly saved as a
+    // draft (currently only possible via the Telegram bot's /newpost flow).
+    const filter = opts.includeDrafts ? {} : { status: { $ne: 'draft' } }
     const docs = await db
       .collection('feed')
-      .find({})
+      .find(filter)
       .sort({ pinned: -1, date: -1, _id: -1 })
       .toArray()
     return { items: docs.map((d) => stripId(d) as unknown as FeedItem) }
