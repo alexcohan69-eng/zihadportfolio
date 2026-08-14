@@ -7,10 +7,10 @@ export const UX = {
 
 export function menuKeyboard() {
   return new InlineKeyboard()
-    .text('Profile & media', 'screen:profile').text('Posts', 'screen:posts').row()
-    .text('Portfolio', 'screen:portfolio').text('Services', 'screen:services').row()
-    .text('Site settings', 'screen:settings').text('Orders', 'screen:orders').row()
-    .text('Stats', 'screen:stats').text('Help', 'screen:help')
+    .text('Profile & media', 'nav:profile').text('Posts', 'nav:posts').row()
+    .text('Portfolio', 'nav:portfolio').text('Services', 'nav:services').row()
+    .text('Site settings', 'nav:settings').text('Orders', 'nav:orders').row()
+    .text('Stats', 'nav:stats').text('Help', 'nav:help')
 }
 
 export function screenKeyboard(back = 'screen:menu') {

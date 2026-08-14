@@ -31,7 +31,9 @@ import { registerStatsHandlers } from './stats'
 import { registerProfileHandlers, clearProfileFlow } from './profile'
 import { registerPortfolioHandlers } from './portfolio'
 import { GENERIC_ERROR_MESSAGE, logCritical, logError } from './logger'
-import { acknowledge, menuKeyboard, screen, screenKeyboard, showScreen } from './ux'
+import { acknowledge, menuKeyboard, screen, showScreen } from './ux'
+import { registerNavigation, renderHome } from './navigation'
+import { clearAllFlows } from './flow-store'
 
 const HELP_TEXT = [
   'Available commands:',
@@ -82,17 +84,6 @@ function adminMenuKeyboard(): InlineKeyboard {
   return menuKeyboard()
 }
 
-const MENU_SCREENS: Record<string, { title: string; body: string; command: string }> = {
-  profile: { title: 'Profile & media', body: 'Manage your profile image, cover image, and feed author media. Uploads and deletes are confirmed before saving.', command: '/profile' },
-  posts: { title: 'Posts', body: 'Create, edit, publish, draft, categorize, and delete feed posts.', command: '/posts' },
-  portfolio: { title: 'Portfolio', body: 'Review projects, feature important work, or remove outdated entries.', command: '/portfolio' },
-  services: { title: 'Services', body: 'Manage your offers, pricing, delivery times, features, and visibility.', command: '/services' },
-  settings: { title: 'Site settings', body: 'Update the public profile, social links, contact details, and site presentation.', command: '/sitesettings' },
-  orders: { title: 'Orders', body: 'Review recent client requests and keep track of incoming work.', command: '/orders' },
-  stats: { title: 'Stats', body: 'See a compact overview of posts, services, orders, and site activity.', command: '/stats' },
-  help: { title: 'Help', body: 'Use /login to unlock admin actions. Every change has a preview or confirmation step. Use /cancel at any time.', command: '/help' },
-}
-
 function createBot(): Bot {
   const { TELEGRAM_BOT_TOKEN } = getTelegramConfig()
   const bot = new Bot(TELEGRAM_BOT_TOKEN)
@@ -109,27 +100,16 @@ function createBot(): Bot {
     await showScreen(ctx, screen('Help & commands', HELP_TEXT, 'Use /menu to return to the control center'), adminMenuKeyboard())
   })
 
+  registerNavigation(bot)
+
   bot.callbackQuery('screen:menu', async (ctx) => {
     await acknowledge(ctx)
-    await showScreen(ctx, screen('Site control center', 'Choose an area to manage.\n\nYour current screen stays in place while you navigate, so the chat remains clean.'), menuKeyboard())
+    await renderHome(ctx)
   })
-
-  for (const [key, item] of Object.entries(MENU_SCREENS)) {
-    bot.callbackQuery(`screen:${key}`, async (ctx) => {
-      await acknowledge(ctx)
-      const keyboard = new InlineKeyboard().text('Open section', `command:${key}`).row().text('Back', 'screen:menu').text('Main menu', 'screen:menu')
-      await showScreen(ctx, screen(item.title, item.body, `Use ${item.command} to continue`), keyboard)
-    })
-    bot.callbackQuery(`command:${key}`, async (ctx) => {
-      await acknowledge(ctx)
-      await showScreen(ctx, screen(item.title, `Continue in this chat with ${item.command}.\n\nThis keeps the current control-center message as your navigation anchor.`), screenKeyboard())
-      await ctx.api.sendMessage(ctx.chat!.id, item.command)
-    })
-  }
 
   bot.command('cancel', async (ctx) => {
     if (!ctx.chat) return
-    const cleared = clearPostFlow(ctx.chat.id) || clearSettingsFlow(ctx.chat.id) || clearServiceFlow(ctx.chat.id) || clearProfileFlow(ctx.chat.id)
+    const cleared = clearAllFlows(ctx.chat.id) || clearPostFlow(ctx.chat.id) || clearSettingsFlow(ctx.chat.id) || clearServiceFlow(ctx.chat.id) || clearProfileFlow(ctx.chat.id)
     await showScreen(ctx, screen(cleared ? 'Flow cancelled' : 'No active flow', cleared ? 'Nothing was changed. You can safely choose another section.' : 'There is no unfinished action in this chat.', 'Choose a section'), adminMenuKeyboard())
   })
 

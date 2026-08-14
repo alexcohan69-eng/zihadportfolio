@@ -27,6 +27,10 @@ function menu(): InlineKeyboard {
     .text('Delete feed author media', 'profile:delete:feedAuthorMedia')
 }
 
+export async function renderProfileScreen(ctx: Context) {
+  await render(ctx, Boolean(ctx.callbackQuery))
+}
+
 async function render(ctx: Context, edit = false) {
   const settings = await readSettingsData()
   const hero = settings.hero
@@ -60,7 +64,17 @@ export function registerProfileHandlers(bot: Bot): void {
       return
     }
     flows().set(ctx.chat.id, { field, action })
-    await ctx.editMessageText(`Send the new ${MEDIA_LABELS[field].toLowerCase()} now.\n\nSupported: photo, video, or image/video file. Use /cancel to stop.`)
+    const current = (await readSettingsData()).hero[field]
+    if (current) {
+      const caption = `Current ${MEDIA_LABELS[field].toLowerCase()}\n\nThis is the asset that will be replaced. Send a new photo or video when ready.`
+      try {
+        if (/\.(mp4|webm|mov)(\?|$)/i.test(current)) await ctx.replyWithVideo(current, { caption })
+        else await ctx.replyWithPhoto(current, { caption })
+      } catch {
+        await ctx.reply(`${caption}\n\nPreview could not be loaded, but the current asset is still safe.`)
+      }
+    }
+    await ctx.editMessageText(`Replace ${MEDIA_LABELS[field].toLowerCase()}\n\nSend the replacement now. Nothing changes until the upload succeeds.\n\nSupported: photo, video, or image/video file.`, { reply_markup: new InlineKeyboard().text('Cancel', 'profile:back').text('Main menu', 'nav:home') })
   }))
 
   bot.callbackQuery(/^profile:confirm-delete:(profileMedia|coverMedia|feedAuthorMedia)$/, requireAuth(async (ctx) => {

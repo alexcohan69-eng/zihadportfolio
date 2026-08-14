@@ -21,6 +21,7 @@ import { getFeedData, addFeedItem, updateFeedItem, deleteFeedItem, getCategories
 import { readSettingsData } from '@/lib/data'
 import type { FeedItem } from '@/lib/types'
 import { GENERIC_ERROR_MESSAGE, logError } from './logger'
+import { acknowledge, screen, showScreen } from './ux'
 
 const BASE_URL = (process.env.NEXT_PUBLIC_BASE_URL ?? 'https://zihadimtiase.com').replace(/\/$/, '')
 const PAGE_SIZE = 10
@@ -85,6 +86,23 @@ function postLink(id: string): string {
   return `${BASE_URL}/feed/${id}`
 }
 
+async function findPost(postId: string) {
+  const { items } = await getFeedData({ includeDrafts: true })
+  return items.find((item) => item.id === postId)
+}
+
+export async function renderPostDetail(ctx: Context, postId: string) {
+  const item = await findPost(postId)
+  if (!item) {
+    await showScreen(ctx, screen('Post unavailable', 'This post was deleted or is no longer available.'), new InlineKeyboard().text('Back to posts', 'nav:posts').text('Main menu', 'nav:home'))
+    return
+  }
+  const keyboard = new InlineKeyboard()
+    .text('Edit', `post:edit:${item.id}`).text('Delete', `post:delete:${item.id}`).row()
+    .text('Back to posts', 'nav:posts').text('Main menu', 'nav:home')
+  await showScreen(ctx, screen('Post detail', summaryFor(item), 'Choose an action'), keyboard)
+}
+
 function summaryFor(item: FeedItem): string {
   const status = item.status ?? 'published'
   const lines = [
@@ -110,6 +128,12 @@ function fieldChoiceKeyboard(postId: string): InlineKeyboard {
 
 // ── /posts listing + pagination ──────────────────────────────────────────────
 
+export async function renderPostsScreen(ctx: Context, page: number): Promise<void> {
+  const { text, keyboard } = await renderPostsPage(page)
+  const { showScreen, screen } = await import('./ux')
+  await showScreen(ctx, screen('Posts', text), keyboard)
+}
+
 async function renderPostsPage(page: number): Promise<{ text: string; keyboard?: InlineKeyboard }> {
   const { items } = await getFeedData({ includeDrafts: true })
 
@@ -124,7 +148,7 @@ async function renderPostsPage(page: number): Promise<{ text: string; keyboard?:
   const keyboard = new InlineKeyboard()
   for (const item of slice) {
     const shortId = item.id.slice(-6)
-    keyboard.text(`✏️ Edit ${shortId}`, `post:edit:${item.id}`).text(`🗑 Delete ${shortId}`, `post:delete:${item.id}`).row()
+    keyboard.text(`${shortId} · ${truncate(item.title, 24)}`, `post:view:${item.id}`).row()
   }
   if (totalPages > 1) {
     if (clampedPage > 0) keyboard.text('« Prev', `posts:page:${clampedPage - 1}`)
@@ -142,11 +166,11 @@ async function startEditFlow(ctx: Context, postId: string): Promise<void> {
   const { items } = await getFeedData({ includeDrafts: true })
   const item = items.find((i) => i.id === postId)
   if (!item) {
-    await ctx.reply(`No post found with ID ${postId}.`)
+    await showScreen(ctx, screen('Post unavailable', 'This post was deleted or is no longer available.'), new InlineKeyboard().text('Back to posts', 'nav:posts').text('Main menu', 'nav:home'))
     return
   }
   if (ctx.chat) getFlows().set(ctx.chat.id, { mode: 'editpost', step: 'choose_field', postId })
-  await ctx.reply(`${summaryFor(item)}\n\nWhat would you like to edit?`, { reply_markup: fieldChoiceKeyboard(postId) })
+  await showScreen(ctx, screen('Edit post', `${summaryFor(item)}\n\nChoose a field. The current value will be shown again before replacement.`), fieldChoiceKeyboard(postId))
 }
 
 // ── /deletepost / inline Delete button ───────────────────────────────────────
@@ -155,13 +179,13 @@ async function startDeleteFlow(ctx: Context, postId: string): Promise<void> {
   const { items } = await getFeedData({ includeDrafts: true })
   const item = items.find((i) => i.id === postId)
   if (!item) {
-    await ctx.reply(`No post found with ID ${postId}.`)
+    await showScreen(ctx, screen('Post unavailable', 'This post was deleted or is no longer available.'), new InlineKeyboard().text('Back to posts', 'nav:posts').text('Main menu', 'nav:home'))
     return
   }
   const keyboard = new InlineKeyboard()
-    .text('Yes, delete it', `delconfirm:${postId}`)
-    .text('No, cancel', `delcancel:${postId}`)
-  await ctx.reply(`Delete this post?\n\nTitle: ${item.title}\nID: ${item.id}`, { reply_markup: keyboard })
+    .text('Delete permanently', `delconfirm:${postId}`).row()
+    .text('Keep post', `delcancel:${postId}`).text('Main menu', 'nav:home')
+  await showScreen(ctx, screen('Delete post?', `${summaryFor(item)}\n\nThis will remove the post from the site. This cannot be undone.`), keyboard)
 }
 
 // ── Registration ──────────────────────────────────────────────────────────────
@@ -201,7 +225,7 @@ export function registerPostHandlers(bot: Bot): void {
     }),
   )
 
-  // ── /deletepost <id> ──
+  // ���─ /deletepost <id> ──
   bot.command(
     'deletepost',
     requireAuth(async (ctx) => {
@@ -225,7 +249,13 @@ export function registerPostHandlers(bot: Bot): void {
     await ctx.answerCallbackQuery()
   })
 
-  // ── Inline "Edit"/"Delete" buttons from /posts ──
+  // ── List → detail → action navigation ──
+  bot.callbackQuery(/^post:view:(.+)$/, requireAuth(async (ctx) => {
+    await acknowledge(ctx)
+    await renderPostDetail(ctx, ctx.match[1])
+  }))
+
+  // ── Actions from post detail ──
   bot.callbackQuery(/^post:edit:(.+)$/, requireAuth(async (ctx) => {
     await ctx.answerCallbackQuery()
     await startEditFlow(ctx, ctx.match[1])
@@ -272,8 +302,16 @@ export function registerPostHandlers(bot: Bot): void {
     }
 
     if (field === 'media') {
+      const item = await findPost(postId)
       flows.set(ctx.chat.id, { mode: 'editpost', step: 'awaiting_media', postId })
-      await ctx.editMessageText('Send a new photo or video for this post.\n\n(Type /cancel to abort.)')
+      if (item?.image) {
+        try {
+          await ctx.replyWithPhoto(item.image, { caption: `Current media for “${item.title}”\n\nThis asset will be replaced only after the new upload succeeds.` })
+        } catch {
+          await ctx.reply('The current media preview could not be loaded, but the existing asset is still safe.')
+        }
+      }
+      await ctx.editMessageText('Replace post media\n\nSend a new photo or video. The current media was shown first when available.', { reply_markup: new InlineKeyboard().text('Cancel', `editfield:cancel:${postId}`).text('Main menu', 'nav:home') })
       return
     }
 
