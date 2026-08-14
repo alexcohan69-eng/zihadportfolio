@@ -17,7 +17,7 @@
 import { Bot, InlineKeyboard, type Context } from 'grammy'
 import { requireAuth } from './auth-middleware'
 import { extractIncomingFile, downloadAndUploadTelegramFile } from './media'
-import { getFeedData, addFeedItem, updateFeedItem, deleteFeedItem } from '@/lib/data-actions'
+import { getFeedData, addFeedItem, updateFeedItem, deleteFeedItem, getCategories, addCategory } from '@/lib/data-actions'
 import { readSettingsData } from '@/lib/data'
 import type { FeedItem } from '@/lib/types'
 import { GENERIC_ERROR_MESSAGE, logError } from './logger'
@@ -29,9 +29,10 @@ const PAGE_SIZE = 10
 
 interface NewPostState {
   mode: 'newpost'
-  step: 'title' | 'content' | 'ask_media' | 'awaiting_media' | 'awaiting_publish' | 'confirm'
+  step: 'title' | 'content' | 'category' | 'ask_media' | 'awaiting_media' | 'awaiting_publish' | 'confirm'
   title?: string
   content?: string
+  category?: string
   mediaUrl?: string
   status?: 'draft' | 'published'
 }
@@ -297,6 +298,26 @@ export function registerPostHandlers(bot: Bot): void {
     await ctx.editMessageText(`Updated!\n\n${summaryFor(result.item)}`)
   }))
 
+  // ── newpost: category picker ──
+  bot.callbackQuery(/^np:category:(.+)$/, requireAuth(async (ctx) => {
+    await ctx.answerCallbackQuery()
+    if (!ctx.chat) return
+    const state = flows.get(ctx.chat.id)
+    if (!state || state.mode !== 'newpost' || state.step !== 'category') return
+    const category = decodeURIComponent(ctx.match[1])
+    flows.set(ctx.chat.id, { ...state, category, step: 'ask_media' })
+    await ctx.editMessageText(`Category: ${category}\n\nWould you like to attach an image or video?`, { reply_markup: new InlineKeyboard().text('Yes', 'np:media:yes').text('No', 'np:media:no').row().text('Cancel', 'np:cancel') })
+  }))
+
+  bot.callbackQuery('np:category:new', requireAuth(async (ctx) => {
+    await ctx.answerCallbackQuery()
+    if (!ctx.chat) return
+    const state = flows.get(ctx.chat.id)
+    if (!state || state.mode !== 'newpost') return
+    flows.set(ctx.chat.id, { ...state, step: 'category' })
+    await ctx.editMessageText('Send the new category name (or /cancel).')
+  }))
+
   // ── newpost: media yes/no ──
   bot.callbackQuery(/^np:media:(yes|no)$/, requireAuth(async (ctx) => {
     await ctx.answerCallbackQuery()
@@ -349,7 +370,7 @@ export function registerPostHandlers(bot: Bot): void {
         title: state.title ?? 'Untitled',
         excerpt: truncate(content, 160),
         content,
-        category: 'posts',
+        category: state.category || 'posts',
         image: state.mediaUrl,
         media: state.mediaUrl ? [state.mediaUrl] : [],
         author,
@@ -394,19 +415,30 @@ export function registerPostHandlers(bot: Bot): void {
           await ctx.reply('Please send non-empty content (or /cancel to abort).')
           return
         }
-        flows.set(ctx.chat.id, { ...state, step: 'ask_media', content: text })
+        flows.set(ctx.chat.id, { ...state, step: 'category', content: text })
+        const categories = await getCategories()
         const keyboard = new InlineKeyboard()
-          .text('Yes', 'np:media:yes')
-          .text('No', 'np:media:no')
-          .row()
-          .text('❌ Cancel', 'np:cancel')
-        await ctx.reply('Would you like to attach an image or video?', { reply_markup: keyboard })
+        for (const category of categories.slice(0, 20)) keyboard.text(category, `np:category:${encodeURIComponent(category)}`).row()
+        keyboard.text('Create category', 'np:category:new').row()
+        keyboard.text('Cancel', 'np:cancel')
+        await ctx.reply('Choose a category for this post:', { reply_markup: keyboard })
         return
       }
-      // ask_media / awaiting_media / awaiting_publish / confirm are all
-      // driven by inline-keyboard button presses, not free text.
-      await ctx.reply('Please use the buttons above to continue (or /cancel to abort).')
-      return
+      if (state.step === 'category') {
+        const category = text.slice(0, 80)
+        const created = await addCategory(category)
+        if (!created.success && !created.error?.toLowerCase().includes('already')) {
+          await ctx.reply(`Could not create that category: ${created.error ?? 'unknown error'}.`)
+          return
+        }
+        flows.set(ctx.chat.id, { ...state, category, step: 'ask_media' })
+        await ctx.reply(`Category: ${category}\n\nWould you like to attach an image or video?`, { reply_markup: new InlineKeyboard().text('Yes', 'np:media:yes').text('No', 'np:media:no').row().text('Cancel', 'np:cancel') })
+        return
+      }
+      if (state.step === 'ask_media' || state.step === 'awaiting_media' || state.step === 'awaiting_publish' || state.step === 'confirm') {
+        await ctx.reply('Please use the buttons above to continue (or /cancel to abort).')
+        return
+      }
     }
 
     // editpost

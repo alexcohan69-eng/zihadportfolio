@@ -21,19 +21,26 @@
  * Mongo client — this keeps a single `Bot` across Next.js dev hot-reloads
  * and across warm serverless invocations in the same container.
  */
-import { Bot, GrammyError, HttpError } from 'grammy'
+import { Bot, GrammyError, HttpError, InlineKeyboard } from 'grammy'
 import { getTelegramConfig } from './config'
 import { registerAuthHandlers } from './login'
 import { registerPostHandlers, clearPostFlow } from './posts'
 import { registerSettingsHandlers, clearSettingsFlow } from './settings'
 import { registerServiceHandlers, clearServiceFlow } from './services'
 import { registerStatsHandlers } from './stats'
+import { registerProfileHandlers, clearProfileFlow } from './profile'
+import { registerPortfolioHandlers } from './portfolio'
 import { GENERIC_ERROR_MESSAGE, logCritical, logError } from './logger'
 
 const HELP_TEXT = [
   'Available commands:',
   '',
   'First time here? Send /login and enter your admin username, then password (in this private chat only) to unlock everything below.',
+  '',
+  'Quick start',
+  '/menu — open the admin control center',
+  '/profile — manage profile, cover, and author media',
+  '/dashboard — see a quick site summary',
   '',
   'Account',
   '/login — authenticate as admin',
@@ -45,6 +52,10 @@ const HELP_TEXT = [
   '/posts — list recent posts, with inline Edit/Delete buttons',
   '/editpost <id> — jump straight to editing one post, e.g. /editpost 65f1a2',
   '/deletepost <id> — delete one post by ID, with a confirm step',
+  '/profile — replace or delete profile, cover, and feed author media',
+  '',
+  'Portfolio',
+  '/portfolio — list projects and feature/delete them',
   '',
   'Settings',
   '/sitesettings — view all site settings, grouped, with inline Edit buttons',
@@ -66,22 +77,42 @@ declare global {
   var _telegramBot: Bot | undefined
 }
 
+function adminMenuKeyboard(): InlineKeyboard {
+  return new InlineKeyboard()
+    .text('Profile & media', 'menu:profile').text('Posts', 'menu:posts').row()
+    .text('Portfolio', 'menu:portfolio').text('Services', 'menu:services').row()
+    .text('Site settings', 'menu:settings').text('Orders', 'menu:orders').row()
+    .text('Stats', 'menu:stats').text('Help', 'menu:help')
+}
+
 function createBot(): Bot {
   const { TELEGRAM_BOT_TOKEN } = getTelegramConfig()
   const bot = new Bot(TELEGRAM_BOT_TOKEN)
 
   bot.command('start', async (ctx) => {
-    await ctx.reply('Welcome! This is the admin bot for the site.\n\nPlease use /login to authenticate.')
+    await ctx.reply('Welcome to your site control center.\n\nUse /login first, then /menu to manage your site from Telegram.', { reply_markup: adminMenuKeyboard() })
+  })
+
+  bot.command('menu', async (ctx) => {
+    await ctx.reply('Site control center\n\nChoose what you want to manage:', { reply_markup: adminMenuKeyboard() })
   })
 
   bot.command('help', async (ctx) => {
-    await ctx.reply(HELP_TEXT)
+    await ctx.reply(HELP_TEXT, { reply_markup: adminMenuKeyboard() })
   })
+
+  for (const [data, command] of [['menu:profile', 'profile'], ['menu:posts', 'posts'], ['menu:portfolio', 'portfolio'], ['menu:services', 'services'], ['menu:settings', 'sitesettings'], ['menu:orders', 'orders'], ['menu:stats', 'stats'], ['menu:help', 'help']] as const) {
+    bot.callbackQuery(data, async (ctx) => {
+      await ctx.answerCallbackQuery()
+      await ctx.reply(`Opening /${command}…`)
+      await ctx.api.sendMessage(ctx.chat!.id, `/${command}`)
+    })
+  }
 
   bot.command('cancel', async (ctx) => {
     if (!ctx.chat) return
-    const cleared = clearPostFlow(ctx.chat.id) || clearSettingsFlow(ctx.chat.id) || clearServiceFlow(ctx.chat.id)
-    await ctx.reply(cleared ? 'Cancelled.' : 'Nothing to cancel.')
+    const cleared = clearPostFlow(ctx.chat.id) || clearSettingsFlow(ctx.chat.id) || clearServiceFlow(ctx.chat.id) || clearProfileFlow(ctx.chat.id)
+    await ctx.reply(cleared ? 'Cancelled. You are back at the main menu.' : 'Nothing to cancel.')
   })
 
   registerAuthHandlers(bot)
@@ -89,6 +120,8 @@ function createBot(): Bot {
   registerSettingsHandlers(bot)
   registerServiceHandlers(bot)
   registerStatsHandlers(bot)
+  registerProfileHandlers(bot)
+  registerPortfolioHandlers(bot)
 
   // Last-resort net for anything that escapes every handler above (e.g. a
   // throw during grammy's own update routing, before `requireAuth` or
