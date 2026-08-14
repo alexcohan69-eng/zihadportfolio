@@ -20,6 +20,7 @@ import { Bot, InlineKeyboard, type Context } from 'grammy'
 import { requireAuth } from './auth-middleware'
 import { getServicesData, addService, updateService, deleteService } from '@/lib/data-actions'
 import type { Service } from '@/lib/types'
+import { GENERIC_ERROR_MESSAGE, logError } from './logger'
 
 const PAGE_SIZE = 10
 
@@ -328,7 +329,7 @@ export function registerServiceHandlers(bot: Bot): void {
 
       await ctx.editMessageText(`Service created!\n\nTitle: ${result.service.title}\nID: ${result.service.id}\nSlug: ${result.service.slug}`)
     } catch (err) {
-      console.error('[telegram-bot] Failed to create service:', err)
+      logError('newservice:confirm', ctx.chat.id, err)
       await ctx.editMessageText('Something went wrong creating the service. Please try again with /newservice.')
     }
   }))
@@ -400,12 +401,17 @@ export function registerServiceHandlers(bot: Bot): void {
       }
 
       flows.delete(ctx.chat.id)
-      const result = await updateService(serviceId, update)
-      if (!result.success || !result.service) {
-        await ctx.reply(`Couldn't update service ${serviceId}: ${result.error ?? 'unknown error'}.`)
-        return
+      try {
+        const result = await updateService(serviceId, update)
+        if (!result.success || !result.service) {
+          await ctx.reply(`Couldn't update service ${serviceId}: ${result.error ?? 'unknown error'}.`)
+          return
+        }
+        await ctx.reply(`Updated!\n\n${summaryFor(result.service)}`)
+      } catch (err) {
+        logError(`editservice:${field}`, ctx.chat.id, err)
+        await ctx.reply(GENERIC_ERROR_MESSAGE)
       }
-      await ctx.reply(`Updated!\n\n${summaryFor(result.service)}`)
       return
     }
 

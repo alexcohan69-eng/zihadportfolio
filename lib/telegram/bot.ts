@@ -21,41 +21,44 @@
  * Mongo client — this keeps a single `Bot` across Next.js dev hot-reloads
  * and across warm serverless invocations in the same container.
  */
-import { Bot } from 'grammy'
+import { Bot, GrammyError, HttpError } from 'grammy'
 import { getTelegramConfig } from './config'
 import { registerAuthHandlers } from './login'
 import { registerPostHandlers, clearPostFlow } from './posts'
 import { registerSettingsHandlers, clearSettingsFlow } from './settings'
 import { registerServiceHandlers, clearServiceFlow } from './services'
 import { registerStatsHandlers } from './stats'
+import { GENERIC_ERROR_MESSAGE, logError } from './logger'
 
 const HELP_TEXT = [
   'Available commands:',
   '',
+  'First time here? Send /login and enter your admin username, then password (in this private chat only) to unlock everything below.',
+  '',
   'Account',
   '/login — authenticate as admin',
   '/logout — end your admin session',
-  '/cancel — abort whatever you were doing',
+  '/cancel — abort whatever you were doing, from any step',
   '',
   'Posts',
-  '/newpost — create a new feed post',
-  '/posts — list recent posts (edit/delete inline)',
-  '/editpost <id> — edit a post by ID',
-  '/deletepost <id> — delete a post by ID',
+  '/newpost — create a new feed post (title → content → media? → publish/draft → confirm)',
+  '/posts — list recent posts, with inline Edit/Delete buttons',
+  '/editpost <id> — jump straight to editing one post, e.g. /editpost 65f1a2',
+  '/deletepost <id> — delete one post by ID, with a confirm step',
   '',
   'Settings',
-  '/sitesettings — view site settings (edit inline)',
-  '/updatesetting — jump straight to editing a setting',
+  '/sitesettings — view all site settings, grouped, with inline Edit buttons',
+  '/updatesetting — same as /sitesettings, jumps straight to editing',
   '',
   'Services',
-  '/newservice — add a new service',
-  '/services — list services (edit/delete/toggle inline)',
-  '/editservice <id> — edit a service by ID',
-  '/deleteservice <id> — delete a service by ID',
+  '/newservice — add a new service (title → description → price → delivery → features → confirm)',
+  '/services — list services, with inline Edit/Activate/Deactivate/Delete buttons',
+  '/editservice <id> — jump straight to editing one service by ID',
+  '/deleteservice <id> — delete one service by ID, with a confirm step',
   '',
   'Other',
   '/stats — post, service & order counts',
-  '/orders — view recent order requests (read-only)',
+  '/orders — view recent order requests (read-only — reply to clients from the web admin\u2019s Messages page)',
 ].join('\n')
 
 declare global {
@@ -87,8 +90,29 @@ function createBot(): Bot {
   registerServiceHandlers(bot)
   registerStatsHandlers(bot)
 
+  // Last-resort net for anything that escapes every handler above (e.g. a
+  // throw during grammy's own update routing, before `requireAuth` or
+  // `registerAuthHandlers`'s handlers get a chance to catch it). Most
+  // command/callback errors are already caught and logged inside
+  // `requireAuth` — this exists for the remainder, plus Telegram-API-level
+  // failures (rate limits, timeouts) that `GrammyError`/`HttpError`
+  // distinguish from programming errors.
   bot.catch((err) => {
-    console.error('[telegram-bot] Unhandled error while processing an update:', err.error)
+    const chatId = err.ctx.chat?.id
+    const action = err.ctx.callbackQuery?.data ?? err.ctx.message?.text ?? 'unknown'
+
+    if (err.error instanceof GrammyError) {
+      logError(`${action}:telegram-api-error(${err.error.error_code})`, chatId, err.error)
+    } else if (err.error instanceof HttpError) {
+      logError(`${action}:network-timeout`, chatId, err.error)
+    } else {
+      logError(action, chatId, err.error)
+    }
+
+    err.ctx.reply(GENERIC_ERROR_MESSAGE).catch(() => {
+      // Nothing more we can do if even the fallback reply fails (e.g. the
+      // user blocked the bot) — already logged above.
+    })
   })
 
   return bot

@@ -23,6 +23,7 @@ import { requireAuth } from './auth-middleware'
 import { updateSettings } from '@/lib/data-actions'
 import { readSettingsData } from '@/lib/data'
 import type { SiteSettings } from '@/lib/types'
+import { GENERIC_ERROR_MESSAGE, logError } from './logger'
 
 type Section = 'hero' | 'contact' | 'meta'
 
@@ -285,8 +286,8 @@ export function registerSettingsHandlers(bot: Bot): void {
       }
       await ctx.reply(`Updated ${fieldDef.label}!\n\nNew value: ${validated.value || '(empty)'}`)
     } catch (err) {
-      console.error('[telegram-bot] Failed to update setting:', err)
-      await ctx.reply(`Something went wrong updating ${fieldDef.label}. Please try again.`)
+      logError(`updatesetting:${state.section}.${state.field}`, ctx.chat.id, err)
+      await ctx.reply(GENERIC_ERROR_MESSAGE)
     }
   })
 }

@@ -17,6 +17,7 @@
 import type { Bot } from 'grammy'
 import { verifyAdminCredentials } from '@/lib/auth'
 import { clearTelegramSession, createTelegramSession, isTelegramAuthenticated } from './session-store'
+import { GENERIC_ERROR_MESSAGE, logAuth, logCommand, logWarn } from './logger'
 
 type LoginStep = 'awaiting_username' | 'awaiting_password'
 
@@ -83,8 +84,15 @@ export function registerAuthHandlers(bot: Bot): void {
     if (!ctx.chat) return
     const chatId = ctx.chat.id
     flows.delete(chatId)
-    await clearTelegramSession(chatId)
-    await ctx.reply('Logged out successfully.')
+    try {
+      await clearTelegramSession(chatId)
+      logCommand(chatId, '/logout', 'success')
+      await ctx.reply('Logged out successfully.')
+    } catch (err) {
+      logCommand(chatId, '/logout', 'failure')
+      logWarn('/logout', chatId, err instanceof Error ? err.message : String(err))
+      await ctx.reply(GENERIC_ERROR_MESSAGE)
+    }
   })
 
   // Only fires for text messages that no earlier command handler consumed,
@@ -120,20 +128,25 @@ export function registerAuthHandlers(bot: Bot): void {
     try {
       await ctx.deleteMessage()
     } catch (err) {
-      console.warn('[telegram-bot] Could not auto-delete password message:', err)
+      logWarn('login:delete-password-message', chatId, err instanceof Error ? err.message : String(err))
     }
 
-    if (!verifyAdminCredentials(username, password)) {
-      // Generic log only — never the username or password.
-      console.log(`[telegram-bot] Failed login attempt for chat ID ${chatId}`)
-      cooldowns.set(chatId, Date.now() + LOGIN_COOLDOWN_MS)
-      await ctx.reply('Invalid username or password.')
-      return
-    }
+    try {
+      if (!verifyAdminCredentials(username, password)) {
+        // Masked-chat-id log only — never the username or password.
+        logAuth(chatId, 'failure')
+        cooldowns.set(chatId, Date.now() + LOGIN_COOLDOWN_MS)
+        await ctx.reply('Invalid username or password.')
+        return
+      }
 
-    cooldowns.delete(chatId)
-    await createTelegramSession(chatId)
-    console.log(`[telegram-bot] Chat ID ${chatId} authenticated successfully.`)
-    await ctx.reply('Login successful. You can now use admin commands. Type /help to see available commands.')
+      cooldowns.delete(chatId)
+      await createTelegramSession(chatId)
+      logAuth(chatId, 'success')
+      await ctx.reply('Login successful. You can now use admin commands. Type /help to see available commands.')
+    } catch (err) {
+      logWarn('login:verify-or-create-session', chatId, err instanceof Error ? err.message : String(err))
+      await ctx.reply(GENERIC_ERROR_MESSAGE)
+    }
   })
 }
