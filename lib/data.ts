@@ -4,9 +4,9 @@
  * Re-exports shared types so consumers import from one place.
  */
 import { getDb } from '@/lib/db'
-import type { FeedItem, Project, Service, SiteSettings } from '@/lib/types'
+import type { FeedItem, Project, Service, ServiceOrder, SiteSettings } from '@/lib/types'
 
-export type { FeedItem, Project, Service, SiteSettings }
+export type { FeedItem, Project, Service, ServiceOrder, SiteSettings }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -90,6 +90,23 @@ export async function readServiceBySlug(slug: string): Promise<Service | null> {
   } catch (error) {
     console.error('[readServiceBySlug]', error)
     return null
+  }
+}
+
+// ── Orders (read-only) ────────────────────────────────────────────────────────
+// Mirrors the admin branch of `GET /api/orders` (all orders, newest first).
+// Sending replies remains the web dashboard's job — this is intentionally
+// read-only so the Telegram bot can list orders without duplicating the
+// chat/notification logic that lives in `app/api/messages/route.ts`.
+
+export async function readOrdersData(): Promise<{ orders: ServiceOrder[] }> {
+  try {
+    const db = await getDb()
+    const docs = await db.collection('orders').find({}).sort({ submittedAt: -1 }).toArray()
+    return { orders: docs.map((d) => stripId(d) as unknown as ServiceOrder) }
+  } catch (error) {
+    console.error('[readOrdersData]', error)
+    return { orders: [] }
   }
 }
 

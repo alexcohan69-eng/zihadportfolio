@@ -53,6 +53,17 @@ function getFlows(): Map<number, FlowState> {
   return globalThis._telegramPostFlows
 }
 
+/**
+ * Clears any in-progress /newpost or /editpost flow for `chatId`.
+ * Used by the shared `/cancel` command registered in `bot.ts`, since a
+ * chat may be mid-flow in this module, `settings.ts`, or `services.ts` —
+ * `/cancel` needs to check all of them, not just whichever module happened
+ * to register its own `/cancel` handler first.
+ */
+export function clearPostFlow(chatId: number): boolean {
+  return getFlows().delete(chatId)
+}
+
 // ── Formatting helpers ───────────────────────────────────────────────────────
 
 function formatDate(iso: string): string {
@@ -200,13 +211,6 @@ export function registerPostHandlers(bot: Bot): void {
       await startDeleteFlow(ctx, postId)
     }),
   )
-
-  // ── /cancel ──
-  bot.command('cancel', async (ctx) => {
-    if (!ctx.chat) return
-    const had = flows.delete(ctx.chat.id)
-    await ctx.reply(had ? 'Cancelled.' : 'Nothing to cancel.')
-  })
 
   // ── Pagination ──
   bot.callbackQuery(/^posts:page:(\d+)$/, requireAuth(async (ctx) => {

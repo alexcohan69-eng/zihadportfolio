@@ -1,7 +1,8 @@
 /**
- * Guard for admin-only bot commands. No admin commands exist yet (that's
- * intentionally out of scope here) — this wrapper is the piece future
- * commands will use, e.g. `bot.command('deletepost', requireAuth(handler))`.
+ * Guard for admin-only bot commands. Every admin command — post, settings,
+ * and service management (`posts.ts`, `settings.ts`, `services.ts`), plus
+ * the read-only `/stats`/`/orders` (`stats.ts`) — wraps its handler with
+ * this, e.g. `bot.command('deletepost', requireAuth(handler))`.
  */
 import type { Context } from 'grammy'
 import { isTelegramAuthenticated } from './session-store'

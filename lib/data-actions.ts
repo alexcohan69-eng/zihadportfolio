@@ -1,11 +1,16 @@
 'use server'
 
 import { getDb } from '@/lib/db'
-import { readFeedData, readPortfolioData, readServicesData, readSettingsData, DEFAULT_SETTINGS } from '@/lib/data'
+import { readFeedData, readOrdersData, readPortfolioData, readServicesData, readSettingsData, DEFAULT_SETTINGS } from '@/lib/data'
 import type { FeedItem, Project, Service, SiteSettings } from '@/lib/types'
 
 // Re-export read helpers so server actions and route handlers share one source.
-export { readFeedData as getFeedData, readPortfolioData as getPortfolioData, readServicesData as getServicesData }
+export {
+  readFeedData as getFeedData,
+  readPortfolioData as getPortfolioData,
+  readServicesData as getServicesData,
+  readOrdersData as getOrdersData,
+}
 
 // ── Utility ───────────────────────────────────────────────────────────────────
 
